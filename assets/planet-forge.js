@@ -421,7 +421,7 @@ const ringFragment=`
 uniform float uStyle;uniform float uOpacity;uniform float uTime;varying vec2 vUv;
 void main(){
  float r=vUv.y,phase=sin(r*490.0+sin(r*51.0)*2.5+uTime*.08),grain=.5+.5*sin(r*1700.0+sin(r*92.0)*2.0);
- float bands=.5+.5*phase,gap=smoothstep(.22,.42,bands),edge=smoothstep(0.0,.035,r)*smoothstep(1.0,.93,r);
+ float bands=.5+.5*phase,gap=smoothstep(.22,.42,bands),edge=smoothstep(0.0,.035,r)*(1.0-smoothstep(.93,1.0,r));
  vec3 outer=vec3(.67,.77,.82),inner=vec3(.24,.35,.55);
  if(uStyle>1.5){outer=vec3(.63,.44,.92);inner=vec3(.14,.19,.36);}else if(uStyle>.5){outer=vec3(.42,.7,.83);inner=vec3(.1,.2,.34);}
  vec3 col=mix(inner,outer,bands)*(.8+grain*.32);float alpha=edge*(.13+.58*gap)*uOpacity;gl_FragColor=vec4(col,alpha);
@@ -432,5 +432,5 @@ void main(){
  float r=vUv.y,wave=.5+.5*sin(r*170.0+sin(r*18.0+uTime*.3)*2.2);
  vec3 blue=vec3(.2,.42,.96),gold=vec3(1.0,.53,.22),violet=vec3(.64,.37,1.0);
  vec3 col=mix(blue,gold,smoothstep(.12,.86,wave));col=mix(col,violet,smoothstep(.72,.99,r)*.55);
- float edge=smoothstep(0.0,.08,r)*smoothstep(1.0,.9,r);gl_FragColor=vec4(col,edge*(.18+.52*wave));
+ float edge=smoothstep(0.0,.08,r)*(1.0-smoothstep(.9,1.0,r));gl_FragColor=vec4(col,edge*(.18+.52*wave));
 }`;
