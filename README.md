@@ -2,45 +2,37 @@
 
 **An exploration-first science-fiction action RPG about a living, evolving universe.**
 
-AstroSpace is being built around discovery, traversal, planetary history and cosmic-scale events. Combat supports exploration; it is not the only reason to visit a world.
+## Current website
 
-## Current milestone
+The public site now includes an interactive WebGL Flight Deck with six procedural 3D planet looks, orbital camera controls, a deep-scan interaction, a small flight sandbox and cosmic-event previews.
 
-This repository currently contains:
-- A deployable static project landing page for Vercel.
-- The first-sector world data and exploration access rules.
-- A C++17 reference implementation for planetary lifecycle transitions and exploration gates.
-- Design documents for planet evolution, cosmic events, art/VFX quality and technical architecture.
-- A GitHub Actions validation workflow.
+- Drag to orbit; scroll or use zoom buttons to approach.
+- Select Kharon's Rest, Vespera, Cinderwake, Nox Aeterna, Aureon or Glaciera.
+- Run a deep scan to reveal signal data.
+- Toggle stellar flare, crust fracture or black-hole presentation.
+- Engage Flight: WASD to translate, Q/E vertically, Shift to boost and Space to brake.
 
-**Important scope note:** this is a foundation milestone, not a finished Unreal Engine game. There is no Unreal .uproject, production 3D asset library, animation set, or dedicated game-server fleet in this commit. The C++ module is engine-independent reference logic intended to be integrated into Unreal Engine after the gameplay architecture is approved.
+This is a browser-based visual prototype. It is not the final Unreal Engine game, not multiplayer, and not a production terrain landing system.
 
-## Vision
+## Core game direction
 
-- Explore a galaxy of distinct systems and planets.
-- Let planets have histories: formation, geological change, life, civilizations, decline, collapse and remnants.
-- Fly through space with six-degree-of-freedom controls and character powers.
-- Gate dangerous destinations through story progress, equipment, knowledge and player capability.
-- Make black holes, planetary fragmentation, stellar events and anomalies affect the world.
-- Make investigation, surveying, discovery, ruins and traversal the primary loop.
+AstroSpace is built around discovery, traversal, planetary history and cosmic-scale events. Combat supports exploration; it is not the only reason to visit a world.
 
-## First playable vertical slice
-
-1. Kharon's Rest — the protected starting world.
-2. A story-led tutorial that teaches movement, scanning, traversal and the first character power.
-3. A launch authorization chain; players cannot leave the starting planet until its story, ship and quantum-drive requirements are met.
-4. A small orbital space volume and one accessible destination.
-5. One multi-phase cosmic event and one exploration mystery.
-6. Persistent character and discovery records.
+### Design pillars
+- Planets have lifecycles: formation, primordial change, stability, biosphere, civilization, decline, collapse and remnants.
+- Players explore by flying, scanning, surveying, decoding ruins, solving environmental puzzles and charting routes.
+- The first planet is a protected onboarding space. Players cannot leave until they complete the launch authorization story and obtain a ship with a quantum navigation core.
+- Later destinations require combinations of story, player capability, scanner knowledge and environmental equipment.
+- Black holes, planetary fragmentation, stellar flares and quantum anomalies change routes and world states.
 
 ## Repository map
 
-- `index.html`, `assets/`: Vercel-hosted project landing page.
-- `docs/`: game pillars, world systems, art standards and architecture.
-- `data/`: validated world and cosmic-event data.
-- `src/core/`: engine-independent C++ gameplay rules.
+- `index.html`, `assets/planet-explorer.*`: interactive website and procedural Three.js planet viewer.
+- `docs/`: gameplay, planetary lifecycle, cosmic events, art standards and research references.
+- `data/`: world and event data.
+- `src/core/`: C++17 reference gameplay rules.
 - `tests/`: native unit tests.
-- `database/`: planned database notes only; no live Supabase project is modified by this repository.
+- `.github/workflows/`: CI validation.
 
 ## Local validation
 
@@ -52,15 +44,15 @@ python3 -m json.tool data/sector_01.json >/dev/null
 python3 -m json.tool data/cosmic_events.json >/dev/null
 ```
 
-A C++17 compiler and CMake are required. The GitHub Actions workflow runs the same checks.
+The site is static and served by Vercel. Three.js is loaded as a pinned browser ES module from jsDelivr.
 
-## Platform boundaries
+## Platform responsibilities
 
-- **GitHub:** source of truth, pull requests, version history and CI.
-- **Vercel:** the project website and companion web/API surfaces. It does not simulate real-time 3D gameplay.
-- **Supabase:** planned persistence for accounts, character profiles, codex discoveries, quest flags and save metadata. A dedicated active AstroSpace Supabase project must be selected before applying schema changes.
-- **Unreal Engine + dedicated game servers:** the eventual 3D client and authoritative real-time simulation.
+- **GitHub:** source control, pull requests and CI.
+- **Vercel:** the website and future companion web/API surfaces.
+- **Supabase:** planned persistence for accounts, character profiles, discoveries and progression. No database is modified by the web prototype.
+- **Unreal Engine + dedicated game servers:** the eventual 3D game client and authoritative real-time simulation.
 
 ## Art status
 
-The supplied image bundle contains text concept labels, not production PNG/JPG/3D assets. Production character models, planet environments, animation, cinematics, audio and Niagara effects remain art-production work. See `docs/ART_AND_VFX_STANDARD.md`.
+The browser prototype creates procedural materials at runtime. The supplied image bundle contained text concept labels, not production image or 3D assets. Production PBR texture sets, models, rigs, animation, cinematics, audio and Unreal Niagara effects remain separate art-production work.
