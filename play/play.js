@@ -146,7 +146,7 @@ function makePylon(index,x,z,label,accent){
  const crown=add(new THREE.OctahedronGeometry(1.05,1),glowMat,0,5.55,0);crown.rotation.y=.3;
  const r1=add(new THREE.TorusGeometry(1.55,.055,8,48),glowMat,0,4.1,0);r1.rotation.x=Math.PI/2;
  const r2=add(new THREE.TorusGeometry(1.12,.055,8,48),glowMat,0,6.6,0);r2.rotation.x=Math.PI/2;
- const beam=add(new THREE.CylinderGeometry(.1,.7,27,12,1,true),new THREE.MeshBasicMaterial({color:accent,transparent:true,opacity:.075,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}),0,18,0);
+ const beam=add(new THREE.CylinderGeometry(.1,.7,42,12,1,true),new THREE.MeshBasicMaterial({color:accent,transparent:true,opacity:.075,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}),0,18,0);
  const light=new THREE.PointLight(accent,16,28,2);light.position.y=5.6;group.add(light);
  group.position.set(x,terrainHeight(x,z,currentWorld),z);group.userData={id:index,label:label,active:false,light:light,glowMat:glowMat,beam:beam};return group;
 }
@@ -194,13 +194,13 @@ function buildWorld(worldId,travel=true){
  if(next.id==="kharon"){
   const pos=[[-31,-17],[31,-21],[4,48]],labels=["WESTERN CANOPY RELAY","EASTERN RIDGE RELAY","SOUTHERN ROOT RELAY"];
   for(let i=0;i<3;i++){const p=makePylon(i,pos[i][0],pos[i][1],labels[i],next.accent);if(save.relays[i])activatePylon(p);worldRoot.add(p);relays.push(p);}
-  craft=createCraft();craft.position.set(9,terrainHeight(9,26,next),26);worldRoot.add(craft);
+  craft=createCraft();craft.position.set(7,terrainHeight(7,9,next),9);worldRoot.add(craft);
   createAurora(worldRoot);
  }else{
   craft=null;
   if(!save.surveyed[next.id]){const p=makePylon(0,0,-42,"PLANETARY ANOMALY",next.accent);worldRoot.add(p);relays.push(p);}
  }
- const sx=next.id==="kharon"?9:0,sz=next.id==="kharon"?26:8;
+ const sx=0,sz=0;
  avatar.group.position.set(sx,terrainHeight(sx,sz,next),sz);avatar.group.rotation.y=0;
  velocityY=0;jumpVelocity=0;flightMode=false;avatar.thrusterLeft.visible=false;avatar.thrusterRight.visible=false;
  $("flight-hud").hidden=true;$("flight-button").classList.remove("selected");$("flight-button").innerHTML="<span>✧</span> AETHER FLIGHT <kbd>G</kbd>";
@@ -301,7 +301,18 @@ function updateUI(){
  $("flight-button").disabled=!save.flightUnlocked;$("atlas-button").disabled=!save.flightUnlocked;updateAtlas();
 }
 function updatePrompt(){
- const target=nearestInteractable(),prompt=$("interaction-prompt");
+ const target=nearestInteractable(),prompt=$("interaction-prompt"),nav=$("target-label");
+ let objective=null;
+ if(currentWorld.id==="kharon"){
+  objective=relays.find(p=>!p.userData.active)||(!save.flightUnlocked&&save.relays.every(Boolean)?craft:null);
+ }else objective=relays.find(p=>!p.userData.active)||null;
+ if(objective){
+  const dx=objective.position.x-avatar.group.position.x,dz=objective.position.z-avatar.group.position.z;
+  const meters=Math.round(Math.hypot(dx,dz));
+  const bearing=((Math.atan2(dx,dz)*180/Math.PI)+360)%360;
+  nav.querySelector("span").textContent=(objective===craft?"LANDING CRAFT":objective.userData.label)+" // "+meters+" M";
+  nav.style.setProperty("--bearing",bearing+"deg");
+ }else nav.querySelector("span").textContent="WORLD ARCHIVED // EXPLORE FREELY";
  if(!target){prompt.hidden=true;return;}
  prompt.hidden=false;
  $("interaction-label").textContent=target===craft?"INSTALL AETHER DRIVE":currentWorld.id==="kharon"?"SYNCHRONISE "+target.userData.label:"SCAN PLANETARY ANOMALY";
