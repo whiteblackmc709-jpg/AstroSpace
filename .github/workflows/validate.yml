@@ -32,6 +32,10 @@ jobs:
           assert 'id="game-canvas"' in play_html
           assert '/play/play.css' in play_html
           assert '/play/play.js' in play_html
+          play_css = Path("play/play.css").read_text()
+          assert ".game-topbar{position:absolute" in play_css
+          assert "xmlns=" not in play_css
+          assert ".film-grain{" in play_css
           js = Path("assets/planet-forge.js").read_text()
           for token in ("Elyndra", "Nerith", "Kaldrax", "Vanthris", "Orovane", "Iskara"):
               assert token in js, token
