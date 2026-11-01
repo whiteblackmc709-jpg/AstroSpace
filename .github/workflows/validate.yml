@@ -2,7 +2,7 @@ name: Validate AstroSpace foundation
 
 on:
   push:
-    branches: [main, "foundation/**"]
+    branches: [main, "foundation/**", "visual/**"]
   pull_request:
     branches: [main]
 
@@ -15,6 +15,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Validate JavaScript syntax
+        run: node --check assets/planet-explorer.js
+      - name: Validate HTML entry points
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          html = Path("index.html").read_text()
+          assert 'id="space-canvas"' in html
+          assert '/assets/planet-explorer.css' in html
+          assert '/assets/planet-explorer.js' in html
+          js = Path("assets/planet-explorer.js").read_text()
+          for token in ("Kharon's Rest", "Vespera", "Cinderwake", "Nox Aeterna", "Aureon", "Glaciera"):
+              assert token in js, token
+          assert "ridgesMix" not in js
+          print("HTML/asset contract: PASS")
+          PY
       - name: Set up CMake
         run: cmake -S . -B build
       - name: Build
