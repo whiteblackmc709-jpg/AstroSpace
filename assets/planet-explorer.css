@@ -17,3 +17,8 @@
 .thumb-glaciera{background:radial-gradient(circle at 34% 25%,#f5ffff 0 7%,#8ce7f7 28%,#327eae 52%,#071b3b 78%)}
 .research-top p{max-width:490px}
 @media(max-width:760px){.planet-readout{background:linear-gradient(90deg,rgba(3,8,17,.64),rgba(3,8,17,.18));padding:7px 8px 10px;margin-left:-8px}}
+
+.main-nav a.play-link{height:31px;padding:0 12px;border:1px solid rgba(128,220,233,.42);color:#aef0ea;background:rgba(31,82,91,.18);margin-left:3px}
+.main-nav a.play-link:hover{background:rgba(52,127,135,.35);border-color:var(--cyan)}
+.main-nav a.play-link:after{display:none}
+.flight-toggle{text-decoration:none}

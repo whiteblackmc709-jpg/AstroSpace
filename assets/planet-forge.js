@@ -230,8 +230,29 @@ function startExperience(T){
     data.forEach(o=>{const m=new THREE.Mesh(new THREE.SphereGeometry(o.r,40,32),new THREE.MeshStandardMaterial({color:o.c,roughness:.94,metalness:.02}));m.position.set(...o.p);g.add(m);});return g;
   }
   function makeNebula(THREE){
-    const g=new THREE.Group(),data=[{p:[-25,9,-52],s:[15,7,1],c:"#285a91",o:.13},{p:[23,-8,-61],s:[19,9,1],c:"#64488c",o:.12},{p:[3,18,-75],s:[24,8,1],c:"#256e78",o:.08}];
-    data.forEach(o=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:o.c,transparent:true,opacity:o.o,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));m.position.set(...o.p);m.scale.set(...o.s);m.rotation.z=(Math.random()-.5)*.6;g.add(m);});return g;
+    const g=new THREE.Group();
+    const clusters=[
+      {p:[-25,9,-52],s:[18,9,8],c:"#4389c1"},
+      {p:[23,-8,-61],s:[22,11,9],c:"#8b66bb"},
+      {p:[3,18,-75],s:[27,10,11],c:"#3c9c9d"}
+    ];
+    clusters.forEach((cloud,index)=>{
+      const count=920,positions=new Float32Array(count*3),colors=new Float32Array(count*3),base=new THREE.Color(cloud.c);
+      for(let i=0;i<count;i++){
+        const a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random());
+        positions[i*3]=cloud.p[0]+Math.cos(a)*r*cloud.s[0];
+        positions[i*3+1]=cloud.p[1]+Math.sin(a)*r*cloud.s[1];
+        positions[i*3+2]=cloud.p[2]+(Math.random()-.5)*cloud.s[2];
+        const c=base.clone().multiplyScalar(.72+Math.random()*.42);
+        colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;
+      }
+      const geometry=new THREE.BufferGeometry();
+      geometry.setAttribute("position",new THREE.BufferAttribute(positions,3));
+      geometry.setAttribute("color",new THREE.BufferAttribute(colors,3));
+      const material=new THREE.PointsMaterial({size:1.15+index*.25,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.13,depthWrite:false,blending:THREE.AdditiveBlending});
+      g.add(new THREE.Points(geometry,material));
+    });
+    return g;
   }
   function createRings(THREE){
     const g=new THREE.Group();

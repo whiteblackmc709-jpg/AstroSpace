@@ -2,7 +2,7 @@ name: Validate AstroSpace foundation
 
 on:
   push:
-    branches: [main, "foundation/**", "visual/**", "forge/**"]
+    branches: [main, "foundation/**", "visual/**", "forge/**", "game/**"]
   pull_request:
     branches: [main]
 
@@ -16,7 +16,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Validate JavaScript syntax
-        run: node --check assets/planet-forge.js
+        run: |
+          node --check assets/planet-forge.js
+          node --check play/play.js
       - name: Validate HTML entry points
         run: |
           python3 - <<'PY'
@@ -25,11 +27,19 @@ jobs:
           assert 'id="space-canvas"' in html
           assert '/assets/planet-explorer.css' in html
           assert '/assets/planet-forge.js' in html
+          assert 'href="/play/"' in html
+          play_html = Path("play/index.html").read_text()
+          assert 'id="game-canvas"' in play_html
+          assert '/play/play.css' in play_html
+          assert '/play/play.js' in play_html
           js = Path("assets/planet-forge.js").read_text()
           for token in ("Elyndra", "Nerith", "Kaldrax", "Vanthris", "Orovane", "Iskara"):
               assert token in js, token
           assert "const planetVertex" in js and "const planetFragment" in js
-          print("HTML/asset contract: PASS")
+          play_js = Path("play/play.js").read_text()
+          for token in ("THE FIRST", "flightUnlocked", "AETHER", "STAR ATLAS", "ELYNDRA"):
+              assert token in play_js, token
+          print("Website + playable prologue contract: PASS")
           PY
       - name: Set up CMake
         run: cmake -S . -B build
