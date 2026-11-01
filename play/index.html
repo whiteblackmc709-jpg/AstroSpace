@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06111c">
+  <meta name="description" content="Play the AstroSpace: Quantum Awakening prologue. Awaken Elyndra, restore the ancient relay and unlock Aether Flight.">
+  <title>ASTROSPACE // PLAY — The First Signal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/play/play.css">
+</head>
+<body>
+  <main class="game-shell">
+    <canvas id="game-canvas" aria-label="AstroSpace playable three dimensional world"></canvas>
+    <div class="world-grade"></div>
+    <div class="film-grain"></div>
+    <header class="game-topbar">
+      <a class="game-brand" href="/" aria-label="Back to AstroSpace home">
+        <span class="brand-mark"><i></i><i></i><i></i></span>
+        <span>ASTRO<span>SPACE</span></span>
+        <small>QUANTUM AWAKENING</small>
+      </a>
+      <div class="top-center">
+        <span class="live-dot"></span>
+        <span id="world-sector">SECTOR 01 · THE FIRST LIGHT FRONTIER</span>
+      </div>
+      <div class="top-actions">
+        <button class="top-button" id="atlas-button" type="button" disabled> <span>◎</span> STAR ATLAS <kbd>M</kbd> </button>
+        <button class="top-button" id="flight-button" type="button" disabled><span>✧</span> AETHER FLIGHT <kbd>G</kbd></button>
+        <a class="exit-button" href="/">EXIT GAME</a>
+      </div>
+    </header>
+
+    <section class="left-hud">
+      <div class="hud-kicker"><span class="kicker-line"></span> EXPEDITION PROTOCOL <b>PROLOGUE 01</b></div>
+      <div class="quest-card">
+        <div class="quest-card-top"><span id="quest-phase">FIRST CONTACT</span><span class="quest-count" id="quest-count">00 / 03</span></div>
+        <h1 id="quest-title">THE FIRST<br><em>SIGNAL</em></h1>
+        <p id="quest-description">Three ancient relays are sleeping beneath Elyndra's canopy. Find them and bring the old network back to life.</p>
+        <div class="quest-progress"><span id="quest-progress-fill"></span></div>
+        <div class="objective-list" id="objective-list">
+          <div class="objective-row"><span class="objective-state"></span><span>Locate the first ancient relay</span></div>
+          <div class="objective-row"><span class="objective-state"></span><span>Synchronise three signal nodes</span></div>
+          <div class="objective-row"><span class="objective-state"></span><span>Return to the landing craft</span></div>
+        </div>
+        <div class="quest-reward"><span>MISSION REWARD</span><b id="quest-reward">AETHER DRIVE // LOCKED</b></div>
+      </div>
+      <div class="suit-card">
+        <div class="suit-avatar"><span class="avatar-core"></span><span class="avatar-ring"></span></div>
+        <div class="suit-data">
+          <small>EXPLORER UNIT</small>
+          <b>A.R.I.A. <span>— 07</span></b>
+          <div class="suit-health"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <small id="suit-status">EXOSUIT · CALIBRATING</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="right-hud">
+      <div class="world-readout">
+        <small>LOCAL WORLD // <span id="world-index">01 / 06</span></small>
+        <b id="world-name">ELYNDRA</b>
+        <span id="world-subtitle">THE VERDANT AURORA</span>
+      </div>
+      <div class="resource-stack">
+        <div class="resource"><span class="resource-icon">✧</span><span><small>QUANTUM SHARDS</small><b id="shard-count">000</b></span></div>
+        <div class="resource"><span class="resource-icon signal-icon">⌁</span><span><small>RELAY SYNC</small><b id="relay-count">0 / 3</b></span></div>
+      </div>
+    </section>
+
+    <div class="center-reticle"><span></span><i></i><b></b></div>
+    <div class="target-label" id="target-label"><i></i><span>SCANNING HORIZON</span></div>
+    <div class="interaction-prompt" id="interaction-prompt" hidden><kbd>E</kbd><span id="interaction-label">INTERACT</span><b>↗</b></div>
+    <div class="flight-hud" id="flight-hud" hidden>
+      <div class="flight-status"><span class="flight-pulse"></span> AETHER PROPULSION ONLINE</div>
+      <div class="flight-altitude"><small>ALTITUDE</small><b id="altitude-value">000 M</b></div>
+      <div class="flight-speed"><small>VELOCITY</small><b id="flight-speed">000 KM/H</b></div>
+    </div>
+
+    <section class="bottom-hud">
+      <div class="location-card">
+        <span class="location-symbol">⌖</span>
+        <div><small>FIELD COORDINATES</small><b id="coordinates">12° 04' 28.1" N · 34° 18' 07.4" E</b></div>
+      </div>
+      <div class="control-guide" id="control-guide">
+        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> MOVE</span>
+        <span><kbd>SHIFT</kbd> RUN</span>
+        <span><kbd>SPACE</kbd> JUMP</span>
+        <span><kbd>E</kbd> INTERACT</span>
+        <span><kbd>DRAG</kbd> LOOK</span>
+      </div>
+      <div class="save-indicator"><i></i><span id="save-status">PROGRESS AUTO-SAVED</span></div>
+    </section>
+
+    <div class="touch-controls" id="touch-controls">
+      <div class="touch-pad">
+        <button data-key="KeyW" aria-label="Move forward">▲</button>
+        <div><button data-key="KeyA" aria-label="Move left">◀</button><button data-key="KeyS" aria-label="Move back">▼</button><button data-key="KeyD" aria-label="Move right">▶</button></div>
+      </div>
+      <div class="touch-actions">
+        <button id="touch-interact">E<br><small>USE</small></button>
+        <button id="touch-jump">↑<br><small>JUMP</small></button>
+      </div>
+    </div>
+
+    <div class="toast-message" id="toast-message" role="status" aria-live="polite"></div>
+    <div class="crossfade-loader" id="loading-screen">
+      <div class="loader-orbit"><i></i><i></i><i></i></div>
+      <div class="loader-title">ASTRO<span>SPACE</span></div>
+      <p>INITIALISING PLANETARY SIMULATION</p>
+      <div class="loader-bar"><i></i></div>
+      <small>PROLOGUE // THE FIRST SIGNAL</small>
+    </div>
+    <div class="webgl-error" id="webgl-error" hidden>
+      <b>3D SIMULATION UNAVAILABLE</b>
+      <p>Enable hardware acceleration and WebGL in your browser, then reload the prologue.</p>
+      <a href="/">RETURN TO COMMAND ARCHIVE</a>
+    </div>
+
+    <section class="atlas-overlay" id="atlas-overlay" hidden>
+      <div class="atlas-panel">
+        <div class="atlas-header">
+          <div><small>ASTROSPACE NAVIGATION NETWORK</small><h2>THE <em>STAR ATLAS</em></h2><p>Aether Drive online. Select a world to initiate a planetary insertion.</p></div>
+          <button id="atlas-close" type="button" aria-label="Close atlas">×</button>
+        </div>
+        <div class="atlas-grid" id="atlas-grid"></div>
+        <div class="atlas-foot"><span>06 WORLDS MAPPED</span><span>FLIGHT LICENSE // <b>ACTIVE</b></span></div>
+      </div>
+    </section>
+
+    <div class="intro-overlay" id="intro-overlay" hidden>
+      <div class="intro-panel">
+        <div class="intro-symbol">✧</div>
+        <small>UNIT A.R.I.A. — 07 // BOOT SEQUENCE COMPLETE</small>
+        <h2>YOU ARE<br><em>NOT ALONE.</em></h2>
+        <p>Wake the three ancient relays on Elyndra. Their signal is the key to your Aether Drive. The stars are waiting, but you must earn the sky.</p>
+        <button id="begin-button" type="button">BEGIN EXPEDITION <span>↗</span></button>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="/play/play.js"></script>
+</body>
+</html>
