@@ -2,7 +2,7 @@ name: Validate AstroSpace foundation
 
 on:
   push:
-    branches: [main, "foundation/**", "visual/**"]
+    branches: [main, "foundation/**", "visual/**", "forge/**"]
   pull_request:
     branches: [main]
 
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Validate JavaScript syntax
-        run: node --check assets/planet-explorer.js
+        run: node --check assets/planet-forge.js
       - name: Validate HTML entry points
         run: |
           python3 - <<'PY'
@@ -24,11 +24,11 @@ jobs:
           html = Path("index.html").read_text()
           assert 'id="space-canvas"' in html
           assert '/assets/planet-explorer.css' in html
-          assert '/assets/planet-explorer.js' in html
-          js = Path("assets/planet-explorer.js").read_text()
-          for token in ("Kharon's Rest", "Vespera", "Cinderwake", "Nox Aeterna", "Aureon", "Glaciera"):
+          assert '/assets/planet-forge.js' in html
+          js = Path("assets/planet-forge.js").read_text()
+          for token in ("Elyndra", "Nerith", "Kaldrax", "Vanthris", "Orovane", "Iskara"):
               assert token in js, token
-          assert "ridgesMix" not in js
+          assert "const planetVertex" in js and "const planetFragment" in js
           print("HTML/asset contract: PASS")
           PY
       - name: Set up CMake
@@ -41,3 +41,4 @@ jobs:
         run: |
           python3 -m json.tool data/sector_01.json >/dev/null
           python3 -m json.tool data/cosmic_events.json >/dev/null
+          python3 -m json.tool data/planet_visuals.json >/dev/null

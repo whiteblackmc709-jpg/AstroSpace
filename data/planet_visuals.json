@@ -1,0 +1,60 @@
+{
+  "system": "Solace Minor",
+  "design_policy": "Original fictional world identities and procedural visuals. External references are research-only and are not imported as game assets.",
+  "worlds": [
+    {
+      "id": "kharon",
+      "name": "Elyndra",
+      "designation": "ELN-01",
+      "class": "Verdant terrestrial",
+      "palette": ["abyss blue", "deep teal", "jade green", "mineral ivory"],
+      "signature": ["high-altitude aurora belt", "bioluminescent river deltas", "layered continental shelves"],
+      "material_layers": ["deep ocean", "shallow teal shelf", "wet green biomes", "mineral highlands", "moving cloud shell"]
+    },
+    {
+      "id": "vespera",
+      "name": "Nerith",
+      "designation": "NER-02",
+      "class": "Luminous pelagic",
+      "palette": ["abyss navy", "ocean teal", "reef cyan", "foam mint"],
+      "signature": ["needle island chains", "luminous reef fields", "twin-moon tidal storm"],
+      "material_layers": ["abyssal trenches", "turquoise shelf", "island masks", "reef emission", "storm cloud canopy"]
+    },
+    {
+      "id": "cinder",
+      "name": "Kaldrax",
+      "designation": "KAL-03",
+      "class": "Pyroclastic obsidian",
+      "palette": ["volcanic black", "burnt umber", "molten copper", "flare orange"],
+      "signature": ["caldera scars", "branching lava channels", "basalt volcanic cones"],
+      "material_layers": ["obsidian crust", "fractured basalt", "caldera rims", "emissive mantle channels", "copper ash atmosphere"]
+    },
+    {
+      "id": "nox",
+      "name": "Vanthris",
+      "designation": "VAN-04",
+      "class": "Gravity remnant",
+      "palette": ["void indigo", "fracture violet", "mineral lavender", "core white"],
+      "signature": ["levitating crust plates", "violet gravity chasms", "fractured debris ring"],
+      "material_layers": ["broken crust plates", "exposed mantle", "gravity gaps", "floating rock fragments", "anomaly halo"]
+    },
+    {
+      "id": "aureon",
+      "name": "Orovane",
+      "designation": "ORO-05",
+      "class": "Super-Jovian",
+      "palette": ["storm indigo", "bronze", "champagne", "pale atmospheric gold"],
+      "signature": ["Eye of Oru cyclone", "multi-tier ring bands", "turbulent latitude belts"],
+      "material_layers": ["deep gas bands", "sheared cloud belts", "cyclone spiral", "upper haze", "inner and outer ring bands"]
+    },
+    {
+      "id": "glaciera",
+      "name": "Iskara",
+      "designation": "ISK-06",
+      "class": "Sapphire cryosphere",
+      "palette": ["abyss blue", "glacier blue", "sapphire cyan", "ice ivory"],
+      "signature": ["sapphire crevasses", "crystal spires", "cryovolcanic plumes"],
+      "material_layers": ["subsurface ocean", "fractured ice shell", "crystal ridges", "emissive fissures", "polar plume haze"]
+    }
+  ]
+}
