@@ -36,6 +36,10 @@ jobs:
           assert ".game-topbar{position:absolute" in play_css
           assert "xmlns=" not in play_css
           assert ".film-grain{" in play_css
+          assert ".bottom-hud{left:var(--hud-edge)" in play_css
+          assert ".right-hud{right:var(--hud-edge)" in play_css
+          assert play_css.count("{") == play_css.count("}")
+          assert play_css.count("(") == play_css.count(")")
           js = Path("assets/planet-forge.js").read_text()
           for token in ("Elyndra", "Nerith", "Kaldrax", "Vanthris", "Orovane", "Iskara"):
               assert token in js, token
@@ -43,7 +47,10 @@ jobs:
           play_js = Path("play/play.js").read_text()
           for token in ("THE FIRST", "flightUnlocked", "AETHER", "STAR ATLAS", "ELYNDRA"):
               assert token in play_js, token
-          print("Website + playable prologue contract: PASS")
+          assert "treeCount=68" in play_js
+          assert "craft.position.set(27,terrainHeight(27,20,next),20)" in play_js
+          assert "cameraDistance=12.2" in play_js
+          print("Website + playable prologue + HUD composition contract: PASS")
           PY
       - name: Set up CMake
         run: cmake -S . -B build
