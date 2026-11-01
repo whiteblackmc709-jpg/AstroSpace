@@ -1,0 +1,14 @@
+build/
+cmake-build-*/
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+.vs/
+.idea/
+.DS_Store
+.env
+.env.*
+!.env.example
+node_modules/
+.vercel/

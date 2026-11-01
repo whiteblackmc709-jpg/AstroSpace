@@ -1,0 +1,27 @@
+name: Validate AstroSpace foundation
+
+on:
+  push:
+    branches: [main, "foundation/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up CMake
+        run: cmake -S . -B build
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Validate JSON data
+        run: |
+          python3 -m json.tool data/sector_01.json >/dev/null
+          python3 -m json.tool data/cosmic_events.json >/dev/null

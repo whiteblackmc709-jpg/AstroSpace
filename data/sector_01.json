@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "sector_id": "sector_01_frontier",
+  "name": "The First Light Frontier",
+  "star": {
+    "id": "star_01",
+    "class": "G",
+    "description": "A stable yellow star with a quiet outer debris belt."
+  },
+  "starting_world": "kharons_rest",
+  "planets": [
+    {
+      "id": "kharons_rest",
+      "name": "Kharon's Rest",
+      "biome": "terran",
+      "phase": "biosphere",
+      "gravity_g": 1.0,
+      "atmosphere": "breathable",
+      "hazards": ["localized_storms", "ancient_lattice_interference"],
+      "threat": "low",
+      "access": {
+        "kind": "starting_world",
+        "surface_available_from_start": true,
+        "space_exit_requires_story_stage": 3,
+        "requires_ship": true,
+        "requires_quantum_drive": true
+      },
+      "discoveries": ["lattice_basin", "silent_observatory", "cradle_signal"]
+    },
+    {
+      "id": "vespera",
+      "name": "Vespera",
+      "biome": "oceanic",
+      "phase": "civilized",
+      "gravity_g": 1.05,
+      "atmosphere": "breathable",
+      "hazards": ["tidal_storms", "deep_pressure"],
+      "threat": "moderate",
+      "access": {
+        "min_level": 8,
+        "required_story_stage": 3,
+        "min_scanner_tier": 2,
+        "requires_environment_gear": false
+      },
+      "discoveries": ["abyssal_signal_towers", "bioluminescent_reef", "sunken_archive"]
+    },
+    {
+      "id": "cinderwake",
+      "name": "Cinderwake",
+      "biome": "volcanic",
+      "phase": "declining",
+      "gravity_g": 1.1,
+      "atmosphere": "thin_toxic",
+      "hazards": ["lava_flows", "ash_clouds", "seismic_instability"],
+      "threat": "high",
+      "access": {
+        "min_level": 18,
+        "required_story_stage": 5,
+        "min_scanner_tier": 3,
+        "requires_environment_gear": true
+      },
+      "discoveries": ["mantle_resonance", "glass_canyons", "evacuation_beacons"]
+    },
+    {
+      "id": "nox_aeterna",
+      "name": "Nox Aeterna",
+      "biome": "hollow",
+      "phase": "remnant",
+      "gravity_g": 0.5,
+      "atmosphere": "none",
+      "hazards": ["gravity_flux", "radiation", "void_zones"],
+      "threat": "extreme",
+      "access": {
+        "min_level": 35,
+        "required_story_stage": 8,
+        "min_scanner_tier": 5,
+        "requires_environment_gear": true,
+        "requires_void_adaptation": true
+      },
+      "discoveries": ["folded_horizon", "precursor_vault", "gravitational_echo"]
+    }
+  ]
+}

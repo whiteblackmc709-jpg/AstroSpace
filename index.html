@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b16">
+  <meta name="description" content="AstroSpace: Quantum Awakening — explore a living universe, discover worlds, and witness cosmic events.">
+  <title>AstroSpace — Quantum Awakening</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/astrospace.css">
+</head>
+<body>
+  <div class="noise"></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="AstroSpace home">
+      <span class="brand-mark"><span></span><span></span><span></span></span>
+      <span>ASTRO<span>SPACE</span></span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#universe">Universe</a>
+      <a href="#systems">Discoveries</a>
+      <a href="#vision">The Vision</a>
+    </nav>
+    <a class="status-link" href="#systems"><i></i> EXPEDITION ARCHIVE <span>↗</span></a>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-stars"></div>
+      <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+      <div class="planet-hero"><div class="planet-glow"></div><div class="planet-surface"></div><div class="planet-ring"></div></div>
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-line"></span> QUANTUM AWAKENING <span class="eyebrow-line"></span></div>
+        <h1>THE UNIVERSE<br><em>IS ALIVE.</em></h1>
+        <p class="hero-lede">Worlds are born. Civilizations rise. Stars collapse. Your journey begins at the edge of the unknown.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#universe">Explore the vision <span>↗</span></a>
+          <a class="button button-quiet" href="#systems">View star chart <span>↓</span></a>
+        </div>
+        <div class="hero-footnote"><span class="pulse"></span> AN EXPLORATION-FIRST SPACE RPG <span class="foot-separator">/</span> IN DEVELOPMENT</div>
+      </div>
+      <div class="hero-coordinate"><span>SECTOR 001</span><br>08° 41′ 22.9″ N<br>THE FRONTIER</div>
+      <div class="scroll-cue"><span></span> SCROLL TO DISCOVER</div>
+    </section>
+
+    <section class="intro section-wrap" id="universe">
+      <div class="section-kicker">01 / A LIVING COSMOS</div>
+      <div class="intro-grid">
+        <h2>Not just places<br>to visit. <em>Worlds<br>with a past.</em></h2>
+        <div class="intro-copy">
+          <p>Every planet follows its own story. A quiet blue world may hold the ruins of a vanished civilization. A distant moon may be approaching a catastrophic fracture. A newborn star may reshape the systems around it.</p>
+          <p>Discoveries, expeditions and decisions reveal the universe one mystery at a time. Combat is there when the unknown pushes back — but wonder leads the way.</p>
+        </div>
+      </div>
+      <div class="phase-track" aria-label="Planet lifecycle">
+        <div class="phase"><span class="phase-dot nebula"></span><small>01</small><b>FORMATION</b><span>Dust gathers</span></div>
+        <div class="phase"><span class="phase-dot life"></span><small>02</small><b>AWAKENING</b><span>Life emerges</span></div>
+        <div class="phase"><span class="phase-dot civ"></span><small>03</small><b>CIVILIZATION</b><span>Worlds remember</span></div>
+        <div class="phase"><span class="phase-dot decay"></span><small>04</small><b>DECLINE</b><span>Signals fade</span></div>
+        <div class="phase"><span class="phase-dot ruin"></span><small>05</small><b>REMNANTS</b><span>History remains</span></div>
+      </div>
+    </section>
+
+    <section class="systems-section section-wrap" id="systems">
+      <div class="section-heading">
+        <div><div class="section-kicker">02 / FIELD NOTES</div><h2>Worlds beyond <em>the known.</em></h2></div>
+        <span class="section-aside">FIRST SECTOR / SELECT A WORLD</span>
+      </div>
+      <div class="world-layout">
+        <div class="world-list" role="tablist" aria-label="World selection">
+          <button class="world-card active" role="tab" aria-selected="true" data-world="kharon">
+            <span class="world-index">01</span><span class="world-orb orb-kharon"></span><span class="world-meta"><b>KHARON'S REST</b><small>Terran / Safe frontier</small></span><span class="world-arrow">↗</span>
+          </button>
+          <button class="world-card" role="tab" aria-selected="false" data-world="vespera">
+            <span class="world-index">02</span><span class="world-orb orb-vespera"></span><span class="world-meta"><b>VESPERA</b><small>Oceanic / Tidal anomalies</small></span><span class="world-arrow">↗</span>
+          </button>
+          <button class="world-card" role="tab" aria-selected="false" data-world="cinder">
+            <span class="world-index">03</span><span class="world-orb orb-cinder"></span><span class="world-meta"><b>CINDERWAKE</b><small>Volcanic / Unstable crust</small></span><span class="world-arrow">↗</span>
+          </button>
+          <button class="world-card" role="tab" aria-selected="false" data-world="nox">
+            <span class="world-index">04</span><span class="world-orb orb-nox"></span><span class="world-meta"><b>NOX AETERNA</b><small>Hollow / Gravity flux</small></span><span class="world-arrow">↗</span>
+          </button>
+        </div>
+        <article class="world-detail" aria-live="polite">
+          <div class="world-detail-top"><span id="world-class">TERRAN WORLD</span><span id="world-access" class="access-pill">STARTING WORLD</span></div>
+          <div class="detail-planet" id="detail-planet"><div class="detail-halo"></div><div class="detail-sphere"></div></div>
+          <div class="world-detail-bottom">
+            <div><div class="detail-label">EXPEDITION TARGET</div><h3 id="world-name">Kharon's Rest</h3><p id="world-description">A temperate frontier wrapped in pale cloud bands. The first traces of the Quantum Lattice lie beneath its ancient basin.</p></div>
+            <div class="detail-stats"><span>THREAT <b id="world-threat">LOW</b></span><span>ACCESS <b id="world-requirement">STORY INTRO</b></span><span>KNOWN ANOMALIES <b id="world-anomalies">02</b></span></div>
+          </div>
+        </article>
+      </div>
+      <p class="data-note">Illustrative world archive for the first design sector. Planet art, final names and unlock values are subject to production review.</p>
+    </section>
+
+    <section class="anomaly-section">
+      <div class="anomaly-visual"><div class="blackhole-glow"></div><div class="blackhole-ring ring-a"></div><div class="blackhole-ring ring-b"></div><div class="blackhole-core"></div><span class="anomaly-label">EVENT 07 / GRAVITATIONAL LENS</span></div>
+      <div class="anomaly-copy">
+        <div class="section-kicker">03 / COSMIC PHENOMENA</div>
+        <h2>Some wonders<br>are <em>dangerous.</em></h2>
+        <p>Black holes bend the light around them. Planetary fractures scatter continents into orbit. Stellar storms rewrite navigation routes. An anomaly is not simply an enemy encounter — it is a changing place to understand, survive and explore.</p>
+        <div class="anomaly-tags"><span>BLACK HOLES</span><span>PLANETARY COLLAPSE</span><span>STELLAR GENESIS</span><span>QUANTUM RIFTS</span></div>
+      </div>
+    </section>
+
+    <section class="vision section-wrap" id="vision">
+      <div class="section-kicker">04 / THE EXPEDITION</div>
+      <div class="vision-heading"><h2>Curiosity is your<br><em>greatest power.</em></h2><p>Scan the horizon. Follow a signal. Decode a ruin. Learn how to cross the impossible. The next discovery should feel earned.</p></div>
+      <div class="vision-grid">
+        <div class="vision-item"><span>01</span><b>TRAVERSE</b><p>Move across alien terrain, take flight and navigate orbital space.</p></div>
+        <div class="vision-item"><span>02</span><b>INVESTIGATE</b><p>Read environmental clues, reconstruct histories and unlock mysteries.</p></div>
+        <div class="vision-item"><span>03</span><b>MASTER</b><p>Develop powers, tools and ships to reach places once beyond your limits.</p></div>
+        <div class="vision-item"><span>04</span><b>WITNESS</b><p>Experience events that reshape destinations and leave lasting traces.</p></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <a class="brand" href="#top"><span class="brand-mark"><span></span><span></span><span></span></span><span>ASTRO<span>SPACE</span></span></a>
+    <span>QUANTUM AWAKENING · PROJECT FOUNDATION</span>
+    <a href="#top">BACK TO TOP ↑</a>
+  </footer>
+  <script src="/assets/astrospace.js" defer></script>
+</body>
+</html>

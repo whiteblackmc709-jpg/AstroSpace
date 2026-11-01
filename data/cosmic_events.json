@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "events": [
+    {
+      "id": "event_black_hole_proximity",
+      "type": "black_hole_proximity",
+      "phases": ["detection", "approach", "tidal_warning", "critical_envelope", "aftermath"],
+      "player_actions": ["scan_lensing", "chart_safe_distance", "recover_debris_signal"],
+      "world_effects": ["navigation_distortion", "tidal_force", "light_lensing"],
+      "combat_required": false
+    },
+    {
+      "id": "event_planetary_fragmentation",
+      "type": "planetary_fragmentation",
+      "phases": ["foreshadowing", "warning", "instability", "cataclysm", "remnant"],
+      "player_actions": ["rescue_explorers", "record_seismic_data", "evacuate", "survey_debris"],
+      "world_effects": ["fault_line_changes", "atmospheric_ignition", "orbital_debris"],
+      "combat_required": false
+    },
+    {
+      "id": "event_stellar_flare",
+      "type": "stellar_flare",
+      "phases": ["forecast", "radiation_front", "peak", "cooldown"],
+      "player_actions": ["seek_shelter", "shield_ship", "measure_spectrum"],
+      "world_effects": ["radiation_hazard", "communications_noise", "aurora"],
+      "combat_required": false
+    },
+    {
+      "id": "event_quantum_rift",
+      "type": "quantum_rift",
+      "phases": ["trace", "opening", "stabilized", "collapse"],
+      "player_actions": ["triangulate_signal", "stabilize_anchor", "enter_anomaly"],
+      "world_effects": ["spatial_distortion", "temporary_route", "anomaly_field"],
+      "combat_required": false
+    },
+    {
+      "id": "event_stellar_genesis",
+      "type": "stellar_genesis",
+      "phases": ["nebula_condensation", "protostar", "ignition", "system_formation"],
+      "player_actions": ["survey_nebula", "map_protoplanetary_disc", "catalogue_new_objects"],
+      "world_effects": ["new_star", "new_orbits", "resource_opportunities"],
+      "combat_required": false
+    }
+  ]
+}
