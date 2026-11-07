@@ -47,3 +47,10 @@ Initial targets are hypotheses, not verified results. Profile on named min/targe
 ## Asset status
 
 The supplied visual reference bundle currently contains text labels for concept subjects, but no usable PNG/JPG/WebP files or production 3D assets. All final models, textures, rigs, animations, cinematics, audio and polished VFX remain to be created or licensed.
+
+
+## Enormous Extra Visual Update — browser implementation layer
+
+The browser prologue now adds a per-biome instanced asset pass: broadleaf trees with individual leaf blades, fern and grass fields, reef branching, basalt pillars and magma seams, levitating fracture shards, cloud-island formations and faceted ice spires. Geometry is seeded per planet and emitted as instanced batches so the detail can scale with the selected profile. Terrain chunks also carry per-vertex slope/altitude variation on top of their generated PBR maps, and the sky/aurora layers use per-world shader palettes.
+
+The new pass is a procedural environment-art expansion, not a substitute for scanned rock/foliage assets, authored hero props, film-quality character topology or physically simulated volumetric clouds. Visual acceptance still requires screenshots and GPU profiling on target hardware.

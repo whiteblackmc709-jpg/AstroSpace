@@ -174,7 +174,14 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
           relief=.34+broad*.26+pole*.18-crevasse*.025;
         }
 
-        const grain=(micro-.5)*.075+(detail-.5)*.055;
+        const pore=1-smooth(.015,.12,Math.abs(micro-.5+(detail-.5)*.09));
+        const striation=.5+.5*Math.sin(v*height*.17+middle*18+micro*4.2);
+        const grain=(micro-.5)*.105+(detail-.5)*.072+(striation-.5)*.035;
+        if(kind===0){color=blendColor(color,colors[3],smooth(.84,.98,middle)*.11);rough=clamp(rough+(pore-.5)*.08);}
+        else if(kind===1){color=blendColor(color,colors[3],pore*.12);rough=clamp(rough+(pore-.5)*.1);}
+        else if(kind===2){color=blendColor(color,colors[3],pore*.18);rough=clamp(rough-pore*.22);}
+        else if(kind===3){color=blendColor(color,colors[3],pore*.14);}
+        else if(kind===5){color=blendColor(color,colors[3],pore*.16);rough=clamp(rough+(pore-.5)*.06);}
         color=[clamp(color[0]+grain),clamp(color[1]+grain),clamp(color[2]+grain)];
         packColor(albedo,k,color);
         heightMap[i]=Math.round(clamp(relief)*255);
@@ -224,11 +231,11 @@ export function createPlanetPbrMaterial(THREE,maps,world,{surface="terrain"}={})
   const isPlanet=surface==="planet";
   const material=new THREE.MeshPhysicalMaterial({
     color:0xffffff,map:maps.albedo,normalMap:maps.normal,roughnessMap:maps.roughness,
-    normalScale:new THREE.Vector2(isPlanet?1.18:1.12,isPlanet?1.18:1.12),
+    normalScale:new THREE.Vector2(isPlanet?1.22:1.28,isPlanet?1.22:1.28),
     bumpMap:maps.heightMap,bumpScale:isPlanet?.026:.09,
     displacementMap:isPlanet?maps.heightMap:null,displacementScale:isPlanet?.048:0,
     displacementBias:isPlanet?-.024:0,
-    roughness:kind===1?.74:kind===4?.44:kind===5?.48:.88,
+    roughness:kind===1?.72:kind===4?.42:kind===5?.43:.86,vertexColors:!isPlanet,
     metalness:.018,
     clearcoat:kind===1?.22:kind===5?.18:kind===4?.08:.035,
     clearcoatRoughness:kind===1?.24:kind===5?.3:.46,
@@ -244,26 +251,47 @@ export function createPlanetPbrMaterial(THREE,maps,world,{surface="terrain"}={})
 
 export function createCinematicEnvironment(THREE,renderer){
   if(typeof document==="undefined"||!THREE.PMREMGenerator)return null;
-  const canvas=document.createElement("canvas");canvas.width=1024;canvas.height=512;
+  const width=2048,height=1024,canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
   const ctx=canvas.getContext("2d",{alpha:false});
-  const base=ctx.createLinearGradient(0,0,0,512);
-  base.addColorStop(0,"#020816");base.addColorStop(.34,"#101d35");base.addColorStop(.52,"#192b40");base.addColorStop(.74,"#070d1d");base.addColorStop(1,"#01040b");
-  ctx.fillStyle=base;ctx.fillRect(0,0,1024,512);
-  const haze=ctx.createRadialGradient(570,205,8,570,205,380);
-  haze.addColorStop(0,"rgba(87,130,180,.32)");haze.addColorStop(.48,"rgba(42,93,136,.13)");haze.addColorStop(1,"rgba(4,12,25,0)");
-  ctx.fillStyle=haze;ctx.fillRect(0,0,1024,512);
-  let seed=913;
-  const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967295;};
-  for(let i=0;i<1050;i++){
-    const x=rand()*1024,y=rand()*512,r=.35+rand()*1.1,a=.16+rand()*.52;
-    ctx.fillStyle="rgba(197,220,255,"+a+")";ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  const base=ctx.createLinearGradient(0,0,0,height);
+  base.addColorStop(0,"#01040d");base.addColorStop(.2,"#07182c");base.addColorStop(.42,"#142d43");base.addColorStop(.53,"#203846");base.addColorStop(.72,"#09182a");base.addColorStop(1,"#01030a");
+  ctx.fillStyle=base;ctx.fillRect(0,0,width,height);
+  let seed=913,rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  const hazeLayers=[
+   {x:width*.25,y:height*.32,r:390,color:"76,105,174",alpha:.24},
+   {x:width*.57,y:height*.42,r:520,color:"52,151,169",alpha:.19},
+   {x:width*.82,y:height*.28,r:360,color:"127,76,156",alpha:.17},
+   {x:width*.48,y:height*.68,r:420,color:"47,81,132",alpha:.16}
+  ];
+  for(const layer of hazeLayers){
+   const gradient=ctx.createRadialGradient(layer.x,layer.y,8,layer.x,layer.y,layer.r);
+   gradient.addColorStop(0,"rgba("+layer.color+","+layer.alpha+")");
+   gradient.addColorStop(.34,"rgba("+layer.color+","+(layer.alpha*.44)+")");
+   gradient.addColorStop(1,"rgba("+layer.color+",0)");
+   ctx.fillStyle=gradient;ctx.fillRect(0,0,width,height);
   }
-  const sun=ctx.createRadialGradient(185,138,1,185,138,76);
-  sun.addColorStop(0,"rgba(255,244,218,.98)");sun.addColorStop(.055,"rgba(255,212,153,.72)");sun.addColorStop(.22,"rgba(255,184,113,.18)");sun.addColorStop(1,"rgba(255,160,90,0)");
-  ctx.fillStyle=sun;ctx.fillRect(105,58,160,160);
+  // Fine turbulent filaments give the reflection map a layered dust-cloud structure.
+  for(let i=0;i<34;i++){
+   const x=rand()*width,y=height*(.12+rand()*.72),rx=90+rand()*360,ry=16+rand()*85,rotation=(rand()-.5)*.9;
+   ctx.save();ctx.translate(x,y);ctx.rotate(rotation);
+   const g=ctx.createRadialGradient(0,0,3,0,0,rx);
+   const tone=i%3===0?"105,169,197":i%3===1?"124,113,192":"191,130,91";
+   g.addColorStop(0,"rgba("+tone+",.075)");g.addColorStop(.45,"rgba("+tone+",.035)");g.addColorStop(1,"rgba("+tone+",0)");
+   ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  // Star layers have a broad luminance range; the bright few are reflection anchors, not a flat speckle field.
+  for(let i=0;i<6800;i++){
+   const x=rand()*width,y=rand()*height,r=.28+Math.pow(rand(),5)*2.8,a=.1+rand()*.72;
+   const tone=rand(),color=tone<.12?"211,229,255":tone<.22?"255,217,181":"224,238,255";
+   ctx.fillStyle="rgba("+color+","+a+")";ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  }
+  const sun=ctx.createRadialGradient(width*.18,height*.27,1,width*.18,height*.27,158);
+  sun.addColorStop(0,"rgba(255,249,229,.98)");sun.addColorStop(.035,"rgba(255,224,172,.8)");
+  sun.addColorStop(.13,"rgba(255,188,128,.32)");sun.addColorStop(.42,"rgba(125,181,209,.1)");sun.addColorStop(1,"rgba(255,160,90,0)");
+  ctx.fillStyle=sun;ctx.fillRect(width*.08,height*.14,320,320);
   const source=new THREE.CanvasTexture(canvas);source.mapping=THREE.EquirectangularReflectionMapping;source.colorSpace=THREE.SRGBColorSpace;
+  source.generateMipmaps=true;source.minFilter=THREE.LinearMipmapLinearFilter;
   const pmrem=new THREE.PMREMGenerator(renderer);pmrem.compileEquirectangularShader();
   const target=pmrem.fromEquirectangular(source);
-  source.dispose();pmrem.dispose();
-  return target;
+  source.dispose();pmrem.dispose();return target;
 }
