@@ -90,16 +90,16 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
     makeGrid(96,aspect==="tile"?96:48,seed+53),
     makeGrid(192,aspect==="tile"?192:96,seed+71),
     makeGrid(384,aspect==="tile"?384:192,seed+97),
-    makeGrid(768,aspect==="tile"?768:384,seed+131)
+    makeGrid(width>=8192?1536:width>=4096?1024:768,aspect==="tile"?(width>=8192?1536:width>=4096?1024:768):(width>=8192?768:width>=4096?512:384),seed+131)
   ];
   // Compact channel layouts reduce 8K peak memory while preserving full RGB material detail.
   const albedo=new Uint8Array(count*3);
   const normal=new Uint8Array(count*3);
-  const roughness=new Uint8Array(count);
+  const roughness=new Uint8Array(count*2);
   const heightMap=new Uint8Array(count);
   // Keep each CPU batch close to 65K pixels: large enough to amortise noise sampling,
   // small enough to yield to input/audio without depending on the 3D renderer's FPS.
-  const batchRows=Math.max(4,Math.floor(65536/width));
+  const batchRows=Math.max(12,Math.floor(262144/width));
   let previousProgress=0;
 
   for(let y0=0;y0<height;y0+=batchRows){
@@ -107,7 +107,7 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
     for(let y=y0;y<y1;y++){
       const v=y/height,latitude=Math.abs(v-.5)*2.0;
       for(let x=0;x<width;x++){
-        const u=x/width,i=y*width+x,k=i*4;
+        const u=x/width,i=y*width+x,k=i*3;
         const broad=sampleGrid(grids[0],u,v)*.64+sampleGrid(grids[1],u,v)*.36;
         const middle=sampleGrid(grids[2],u,v)*.58+sampleGrid(grids[3],u,v)*.42;
         const detail=sampleGrid(grids[4],u,v)*.56+sampleGrid(grids[5],u,v)*.44;
@@ -178,7 +178,7 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
         color=[clamp(color[0]+grain),clamp(color[1]+grain),clamp(color[2]+grain)];
         packColor(albedo,k,color);
         heightMap[i]=Math.round(clamp(relief)*255);
-        roughness[i]=Math.round(clamp(rough)*255);
+        const roughValue=Math.round(clamp(rough)*255);roughness[i*2]=roughValue;roughness[i*2+1]=roughValue;
       }
     }
     const progress=y1/height;
@@ -209,7 +209,7 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
   const maps={
     albedo:textureFrom(THREE,albedo,width,height,THREE.RGBFormat,THREE.SRGBColorSpace,renderer,repeatX,repeatY),
     normal:textureFrom(THREE,normal,width,height,THREE.RGBFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
-    roughness:textureFrom(THREE,roughness,width,height,THREE.RedFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
+    roughness:textureFrom(THREE,roughness,width,height,THREE.RGFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
     heightMap:textureFrom(THREE,heightMap,width,height,THREE.RedFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
     width,height,dispose(){
       this.albedo.dispose();this.normal.dispose();this.roughness.dispose();this.heightMap.dispose();
