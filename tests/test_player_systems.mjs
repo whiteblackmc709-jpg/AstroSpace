@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { planetaryDetailBudget } from "../assets/planetary-detail.js";
 
 const game = readFileSync(new URL("../play/play.js", import.meta.url), "utf8");
 const html = readFileSync(new URL("../play/index.html", import.meta.url), "utf8");
@@ -18,4 +19,15 @@ assert.match(auth, /resetPasswordForEmail/, "Password reset must call Supabase A
 assert.match(html, /id="adaptive-quality"/, "Settings must expose adaptive frame pacing.");
 assert.match(game, /function updatePerformanceGovernor\(/, "The renderer must adapt to measured frame time.");
 assert.match(game, /for\(const o of animatedObjects\)/, "Per-frame world traversal must be removed.");
-console.log("Player systems contract: PASS — pilot creator, account recovery, adaptive render scale and cached scene animation.");
+assert.match(game, /createPlanetaryDetail\(THREE,next/, "Every planet must receive its biome-specific detail layer.");
+assert.match(game, /updateTerrainVertexColors\(/, "Terrain chunks must carry slope and biome-aware surface variation.");
+assert.match(game, /uHorizon.*uZenith.*uAccent/s, "The sky shader must inherit each planet's atmospheric palette.");
+assert.match(game, /worldShaders/, "Layered aurora ribbons must animate without scene-wide traversal.");
+assert.ok(readFileSync(new URL("../assets/planetary-detail.js", import.meta.url), "utf8").includes("planetaryDetailBudget"),
+  "The new biome detail budget module must be present.");
+const performanceBudget = planetaryDetailBudget("performance");
+const cinematicBudget = planetaryDetailBudget("cinematic");
+assert.ok(cinematicBudget.forestGrass > performanceBudget.forestGrass, "Cinematic detail should add foliage density.");
+assert.ok(cinematicBudget.iceSpire > performanceBudget.iceSpire, "Cinematic detail should add crystal density.");
+assert.ok(performanceBudget.forestGrass > 0 && performanceBudget.reefBranches > 0, "Every detail budget should be populated.");
+console.log("Player systems contract: PASS — pilot creator, account recovery, adaptive render scale, biome LOD and detailed planetary layers.");

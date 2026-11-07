@@ -275,3 +275,7 @@
 @media(max-width:980px){.perf-readout{display:none}.control-guide{gap:8px}}
 @media(max-width:760px){.bottom-hud{left:12px;right:12px;bottom:12px}.control-guide{display:none}.location-card b{font-size:6px}}
 @media(prefers-reduced-motion:reduce){.character-preview,.character-emblem{transition:none}}
+
+/* World atmosphere and art-scene focus: the game canvas owns the background image. */
+.world-grade{background:linear-gradient(180deg,rgba(2,9,17,.52),transparent 24%,transparent 72%,rgba(2,8,15,.5)),linear-gradient(90deg,rgba(2,9,17,.28),transparent 21%,transparent 79%,rgba(2,9,17,.2))}
+.film-grain{opacity:.032;background-size:3px 3px}

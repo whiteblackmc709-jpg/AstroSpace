@@ -8,10 +8,10 @@ assets/pbr-surfaces.js synthesises four deterministic, biome-seeded maps:
 
 - **Albedo (RGBA8, sRGB):** biome colour, coastline/shelf transitions, volcanic emissive fissures, gas-giant bands/storms, rift plates and polar ice.
 - **Normal (RGBA8, linear):** tangent-space normals derived from the generated height field.
-- **Roughness (RGBA8, linear):** physically meaningful micro-surface response. The grayscale value is written to RGB because Three.js samples the green channel of roughnessMap.
+- **Roughness (RGBA8, linear):** physically meaningful micro-surface response. The scalar value is packed in both RG channels; Three.js samples the green channel of roughnessMap.
 - **Height (R8, linear):** bump detail for ground and bump/displacement detail for the planetary sphere.
 
-Textures use mipmaps and device-supported anisotropy. Albedo is explicitly tagged sRGB; normal, roughness and height remain linear data. The RGBA formats are intentional for the WebGL2 renderer's supported sized formats.
+Textures use mipmaps and device-supported anisotropy. Albedo is explicitly tagged sRGB; normal, roughness and height remain linear data. Compact RGB/RG layouts reduce CPU/GPU texture memory while retaining full channel precision.
 
 ## Adaptive texture tiers
 
@@ -40,3 +40,10 @@ Run from the repository root:
 The PBR contract tests sizing and GPU caps, both map aspect ratios, RGBA formats, roughness green-channel data, height-map attachment, cancellation, all six biome generators and texture disposal. Chromium smoke tests verify the homepage loads its PBR maps and that /play/ can initialise WebGL, open settings, switch to Cinematic and complete a 2K terrain map on a simulated 4 GB device.
 
 The test browser uses SwiftShader software rendering. Its timings are not representative of a discrete GPU. No real-device 4K performance claim is made. Final high-end appearance still requires authored/scanned PBR asset sets, detailed character/ship models, water volumes, volumetric cloud layers and production-grade environment art.
+
+
+## Enormous Extra Visual Update — close-range surface and biome pass
+
+The playable terrain now combines higher segment tiers, biome-aware vertex variation, sharper relief sampling, the streamed PBR maps and a separate instanced detail layer per biome. The layer is quality-budgeted and contains forest canopy/leaf geometry, fern blades and ground cover, reef fans and bioluminescent nodes, basalt and fissure meshes, floating gravity fragments, high-altitude cloud islands, and cryosphere spires/fragments. A wider atmospheric shader, star layers and multi-band aurora ribbons add sky depth. Reflections now use a 2048 × 1024 procedural nebula environment.
+
+The new detail meshes remain procedural and use GPU instancing; this update does not claim authored photogrammetry, native Nanite/Lumen, ray tracing or parity with a commercial Unreal Engine title. 
