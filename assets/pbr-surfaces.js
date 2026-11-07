@@ -33,15 +33,18 @@ function packColor(out,index,color){
   out[index]=Math.round(clamp(color[0])*255);
   out[index+1]=Math.round(clamp(color[1])*255);
   out[index+2]=Math.round(clamp(color[2])*255);
-  out[index+3]=255;
 }
 export function chooseSurfaceSize(renderer,quality="balanced",aspect="tile"){
   const max=Math.max(1024,renderer?.capabilities?.maxTextureSize||4096);
   const memory=Number(typeof navigator!=="undefined"?navigator.deviceMemory||4:4);
-  const fourKMemoryFloor=8;
-  let width=quality==="performance"?1024:quality==="cinematic"&&memory>=fourKMemoryFloor?4096:2048;
+  const supports4k=max>=4096&&memory>=4;
+  const supports8k=max>=8192&&memory>=8;
+  let width=2048;
+  if(quality==="performance")width=1024;
+  else if(quality==="8k")width=supports8k?8192:supports4k?4096:2048;
+  else if(quality==="4k"||quality==="cinematic")width=supports4k?4096:2048;
   width=Math.min(width,max);
-  width=width>=4096?4096:width>=2048?2048:1024;
+  width=width>=8192?8192:width>=4096?4096:width>=2048?2048:1024;
   return {width,height:aspect==="equirectangular"?width/2:width};
 }
 function textureFrom(THREE,data,width,height,format,colorSpace,renderer,repeatX=1,repeatY=1){
@@ -87,16 +90,16 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
     makeGrid(96,aspect==="tile"?96:48,seed+53),
     makeGrid(192,aspect==="tile"?192:96,seed+71),
     makeGrid(384,aspect==="tile"?384:192,seed+97),
-    makeGrid(768,aspect==="tile"?768:384,seed+131)
+    makeGrid(width>=8192?1536:width>=4096?1024:768,aspect==="tile"?(width>=8192?1536:width>=4096?1024:768):(width>=8192?768:width>=4096?512:384),seed+131)
   ];
-  const heightField=new Float32Array(count);
-  const albedo=new Uint8Array(count*4);
-  const normal=new Uint8Array(count*4);
-  const roughness=new Uint8Array(count*4);
+  // Compact channel layouts reduce 8K peak memory while preserving full RGB material detail.
+  const albedo=new Uint8Array(count*3);
+  const normal=new Uint8Array(count*3);
+  const roughness=new Uint8Array(count*2);
   const heightMap=new Uint8Array(count);
   // Keep each CPU batch close to 65K pixels: large enough to amortise noise sampling,
   // small enough to yield to input/audio without depending on the 3D renderer's FPS.
-  const batchRows=Math.max(4,Math.floor(65536/width));
+  const batchRows=Math.max(12,Math.floor(262144/width));
   let previousProgress=0;
 
   for(let y0=0;y0<height;y0+=batchRows){
@@ -104,7 +107,7 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
     for(let y=y0;y<y1;y++){
       const v=y/height,latitude=Math.abs(v-.5)*2.0;
       for(let x=0;x<width;x++){
-        const u=x/width,i=y*width+x,k=i*4;
+        const u=x/width,i=y*width+x,k=i*3;
         const broad=sampleGrid(grids[0],u,v)*.64+sampleGrid(grids[1],u,v)*.36;
         const middle=sampleGrid(grids[2],u,v)*.58+sampleGrid(grids[3],u,v)*.42;
         const detail=sampleGrid(grids[4],u,v)*.56+sampleGrid(grids[5],u,v)*.44;
@@ -174,11 +177,8 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
         const grain=(micro-.5)*.075+(detail-.5)*.055;
         color=[clamp(color[0]+grain),clamp(color[1]+grain),clamp(color[2]+grain)];
         packColor(albedo,k,color);
-        heightField[i]=clamp(relief);
         heightMap[i]=Math.round(clamp(relief)*255);
-        const roughValue=Math.round(clamp(rough)*255);
-        roughness[k]=roughValue;roughness[k+1]=roughValue;
-        roughness[k+2]=roughValue;roughness[k+3]=255;
+        const roughValue=Math.round(clamp(rough)*255);roughness[i*2]=roughValue;roughness[i*2+1]=roughValue;
       }
     }
     const progress=y1/height;
@@ -193,14 +193,13 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
     for(let y=y0;y<y1;y++){
       const ym=Math.max(0,y-1),yp=Math.min(height-1,y+1);
       for(let x=0;x<width;x++){
-        const xm=(x+width-1)%width,xp=(x+1)%width,i=y*width+x,k=i*4;
-        const dx=(heightField[y*width+xp]-heightField[y*width+xm])*normalStrength;
-        const dy=(heightField[yp*width+x]-heightField[ym*width+x])*normalStrength;
+        const xm=(x+width-1)%width,xp=(x+1)%width,i=y*width+x,k=i*3;
+        const dx=((heightMap[y*width+xp]-heightMap[y*width+xm])/255)*normalStrength;
+        const dy=((heightMap[yp*width+x]-heightMap[ym*width+x])/255)*normalStrength;
         let nx=-dx,ny=-dy,nz=1,len=Math.sqrt(nx*nx+ny*ny+nz*nz);
         normal[k]=Math.round((nx/len*.5+.5)*255);
         normal[k+1]=Math.round((ny/len*.5+.5)*255);
         normal[k+2]=Math.round((nz/len*.5+.5)*255);
-        normal[k+3]=255;
       }
     }
     await nextFrame();
@@ -208,9 +207,9 @@ export async function createPlanetPbrMaps(THREE,renderer,world,{
   }
 
   const maps={
-    albedo:textureFrom(THREE,albedo,width,height,THREE.RGBAFormat,THREE.SRGBColorSpace,renderer,repeatX,repeatY),
-    normal:textureFrom(THREE,normal,width,height,THREE.RGBAFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
-    roughness:textureFrom(THREE,roughness,width,height,THREE.RGBAFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
+    albedo:textureFrom(THREE,albedo,width,height,THREE.RGBFormat,THREE.SRGBColorSpace,renderer,repeatX,repeatY),
+    normal:textureFrom(THREE,normal,width,height,THREE.RGBFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
+    roughness:textureFrom(THREE,roughness,width,height,THREE.RGFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
     heightMap:textureFrom(THREE,heightMap,width,height,THREE.RedFormat,THREE.NoColorSpace,renderer,repeatX,repeatY),
     width,height,dispose(){
       this.albedo.dispose();this.normal.dispose();this.roughness.dispose();this.heightMap.dispose();
@@ -225,8 +224,8 @@ export function createPlanetPbrMaterial(THREE,maps,world,{surface="terrain"}={})
   const isPlanet=surface==="planet";
   const material=new THREE.MeshPhysicalMaterial({
     color:0xffffff,map:maps.albedo,normalMap:maps.normal,roughnessMap:maps.roughness,
-    normalScale:new THREE.Vector2(isPlanet?1.18:1.32,isPlanet?1.18:1.32),
-    bumpMap:maps.heightMap,bumpScale:isPlanet?.026:.18,
+    normalScale:new THREE.Vector2(isPlanet?1.18:1.12,isPlanet?1.18:1.12),
+    bumpMap:maps.heightMap,bumpScale:isPlanet?.026:.09,
     displacementMap:isPlanet?maps.heightMap:null,displacementScale:isPlanet?.048:0,
     displacementBias:isPlanet?-.024:0,
     roughness:kind===1?.74:kind===4?.44:kind===5?.48:.88,
