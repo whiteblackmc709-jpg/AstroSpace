@@ -886,6 +886,7 @@ function updateCharacterPreview(){
 }
 function saveCharacterProfile(){
  const profile=updateCharacterPreview();
+ if(profile.callsign.trim().length<2){toast("CALLSIGN MUST BE AT LEAST 2 CHARACTERS");$("character-callsign").focus();return;}
  save.character=profile;
  persist();
  $("character-overlay").hidden=true;
