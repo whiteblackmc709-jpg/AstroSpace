@@ -50,6 +50,7 @@ jobs:
           node tests/test_pbr_surface.mjs
           node tests/test_webgl_boot.mjs
           node tests/test_player_systems.mjs
+          node tests/test_play_toolbar.mjs
           node tests/test_planetary_detail.mjs
           node tests/test_planetary_detail_palette.mjs
       - name: Set up CMake
