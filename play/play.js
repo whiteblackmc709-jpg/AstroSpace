@@ -158,7 +158,7 @@ function initGame(){
   toast,
   getWorld:()=>currentWorld,
   getRegion:()=>currentRegion,
-  applyGraphics:(prefs)=>{if(renderer){renderer.setPixelRatio(Math.min(devicePixelRatio||1,prefs.quality==="cinematic"?1.85:prefs.quality==="performance"?1:1.5));renderer.shadowMap.enabled=prefs.quality!=="performance";renderer.shadowMap.needsUpdate=true;}if(camera){camera.fov=prefs.fov;camera.updateProjectionMatrix();}settings={...settings,...prefs};terrain?.userData?.refreshPbr?.(prefs.quality);},
+  applyGraphics:(prefs)=>applyGraphicsSettings(prefs),
   onSession:async(session)=>{accountSession=session||null;accountConfigured=!!AccountSystem.getSupabase();if(session){try{const cloud=await AccountSystem.loadCloudProgress();const score=(v)=>((v?.completedRegions?.length||0)*4)+Object.values(v?.taskProgress||{}).filter(t=>t?.complete).length;if(cloud&&score(cloud)>score(save)){Object.assign(save,cloud);save.regionCursor=clamp(Number(save.regionCursor)||0,0,REGIONS.length-1);currentRegion=REGIONS[save.regionCursor];currentWorld=PLANETS.find(w=>w.id===currentRegion.planetId)||PLANETS[0];buildWorld(currentWorld.id,false);toast("CLOUD EXPEDITION RESTORED");}else persist();}catch(error){console.warn("Cloud save not ready",error);}}else{accountSession=null;}},
  });
  resize();
@@ -192,6 +192,32 @@ function onKeyDown(e){
 function onPointerDown(e){if(travelSequence||e.button!==0)return;dragging=true;lastX=e.clientX;lastY=e.clientY;$("game-canvas").setPointerCapture?.(e.pointerId);}
 function onPointerMove(e){if(travelSequence||!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0037*settings.sensitivity;pitch=clamp(pitch+dy*.0022*settings.sensitivity*(settings.invert?-1:1),-.12,.72);}
 function resize(){if(!renderer)return;const w=Math.max(1,innerWidth),h=Math.max(1,innerHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+function applyGraphicsSettings(prefs={}){
+ const quality=prefs.quality||settings.quality||"balanced";
+ const profiles={
+  performance:{pixelRatio:1,shadowSize:1024,maxPixels:2400000,exposure:1.04},
+  balanced:{pixelRatio:1.35,shadowSize:2048,maxPixels:5200000,exposure:1.06},
+  cinematic:{pixelRatio:1.65,shadowSize:4096,maxPixels:9000000,exposure:1.08},
+  "4k":{pixelRatio:2.1,shadowSize:4096,maxPixels:12500000,exposure:1.1},
+  "8k":{pixelRatio:2.6,shadowSize:4096,maxPixels:18000000,exposure:1.12}
+ };
+ const profile=profiles[quality]||profiles.balanced;
+ settings={...settings,...prefs,quality};
+ if(renderer){
+  const dpr=window.devicePixelRatio||1;
+  const viewportPixels=Math.max(1,window.innerWidth*window.innerHeight);
+  const budgetRatio=Math.sqrt(profile.maxPixels/viewportPixels);
+  renderer.setPixelRatio(Math.max(1,Math.min(dpr,profile.pixelRatio,budgetRatio)));
+  renderer.toneMappingExposure=profile.exposure;
+  renderer.shadowMap.enabled=quality!=="performance";
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  if(sunLight){sunLight.shadow.mapSize.set(profile.shadowSize,profile.shadowSize);sunLight.shadow.needsUpdate=true;}
+  renderer.shadowMap.needsUpdate=true;
+  renderer.setSize(Math.max(1,innerWidth),Math.max(1,innerHeight),false);
+ }
+ if(camera){camera.fov=Number(prefs.fov)||settings.fov||58;camera.updateProjectionMatrix();}
+ void terrain?.userData?.refreshPbr?.(quality);
+}
 function persist(){try{save.currentWorld=currentWorld.id;localStorage.setItem(SAVE_KEY,JSON.stringify(save));$("save-status").textContent="PROGRESS AUTO-SAVED";if(accountSession){clearTimeout(cloudSaveTimer);cloudSaveTimer=setTimeout(()=>AccountSystem.saveCloudProgress(save).catch(e=>console.warn("Cloud save deferred",e)),1800);}}catch(error){console.warn("Local save unavailable",error);$("save-status").textContent="LOCAL SAVE UNAVAILABLE";}}
 
 function createSky(){

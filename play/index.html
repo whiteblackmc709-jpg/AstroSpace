@@ -174,8 +174,8 @@
       <div class="settings-panel">
         <header class="modal-heading"><div><small>CONFIGURATION / ACCESSIBILITY / AUDIO</small><h2>FLIGHT <em>SETTINGS</em></h2></div><button class="modal-close" id="settings-close">×</button></header>
         <div class="settings-grid">
-          <section><h3>VISUAL QUALITY</h3><label for="quality-select">RENDER PROFILE</label><select id="quality-select"><option value="performance">PERFORMANCE</option><option value="balanced" selected>BALANCED</option><option value="cinematic">CINEMATIC</option></select>
-          <p class="setting-note" id="texture-quality-status" role="status">PBR SURFACE MAPS // 2K TARGET · ADAPTIVE TO GPU</p>
+          <section><h3>VISUAL QUALITY</h3><label for="quality-select">RENDER PROFILE</label><select id="quality-select"><option value="performance">PERFORMANCE</option><option value="balanced" selected>BALANCED · 2K</option><option value="cinematic">CINEMATIC · 4K AUTO</option><option value="4k">ULTRA · 4K MASTER</option><option value="8k">EXTREME · 8K MASTER</option></select>
+          <p class="setting-note" id="texture-quality-status" role="status">PBR MASTER SURFACES // 2K–8K · GPU ADAPTIVE</p>
           <label for="fov-slider">FIELD OF VIEW <b id="fov-value">58°</b></label><input id="fov-slider" type="range" min="48" max="82" value="58">
           <label for="sensitivity-slider">LOOK SENSITIVITY <b id="sensitivity-value">100%</b></label><input id="sensitivity-slider" type="range" min="40" max="180" value="100">
           <label class="check-setting"><input id="invert-look" type="checkbox"> INVERT VERTICAL LOOK</label>
@@ -237,6 +237,6 @@
       </div>
     </div>
   </main>
-  <script type="module" src="/play/play.js?v=webgl-recovery-r7"></script>
+  <script type="module" src="/play/play.js?v=render-master-r8"></script>
 </body>
 </html>
