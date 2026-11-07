@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/play.css?v=exosuit-transit-r5">
+  <link rel="stylesheet" href="/play/play.css?v=player-systems-r10">
 </head>
 <body>
   <main class="game-shell">
@@ -31,6 +31,7 @@
         <button class="top-button" id="audio-button" type="button"><span>♫</span> AUDIO <kbd>V</kbd></button>
         <button class="top-button" id="community-button" type="button"><span>◌</span> COMMONS</button>
         <button class="top-button" id="settings-button" type="button"><span>⚙</span> SETTINGS</button>
+        <button class="top-button" id="character-button" type="button" aria-label="Create or edit pilot character"><span>◈</span> PILOT <kbd>C</kbd></button>
         <button class="top-button" id="account-button" type="button"><span>◉</span> ACCOUNT</button>
         <button class="top-button" id="atlas-button" type="button" disabled> <span>◎</span> STAR ATLAS <kbd>M</kbd> </button>
         <button class="top-button" id="flight-button" type="button" disabled><span>✧</span> AETHER FLIGHT <kbd>G</kbd></button>
@@ -105,6 +106,7 @@
         <span><kbd>E</kbd> INTERACT</span>
         <span><kbd>DRAG</kbd> LOOK</span>
       </div>
+      <div class="perf-readout"><b id="fps-display">-- FPS</b><span id="render-scale-display">ADAPTIVE GPU</span></div>
       <div class="save-indicator"><i></i><span id="save-status">PROGRESS AUTO-SAVED</span></div>
     </section>
 
@@ -157,17 +159,39 @@
       </div>
     </section>
     <section class="account-overlay" id="account-overlay" hidden>
-      <div class="account-panel">
-        <button class="modal-close" id="account-close">×</button>
-        <div class="modal-eyebrow">ASTROSPACE IDENTITY / PILOT REGISTRY</div><h2>YOUR <em>EXPEDITION.</em></h2>
-        <p class="account-copy">Create a pilot identity to sync progress and join the global network. Local campaign progress remains available without an account.</p>
-        <div class="account-status" id="account-status">CHECKING ACCOUNT SERVICE…</div>
-        <label for="account-name">CALLSIGN</label><input id="account-name" maxlength="24" autocomplete="nickname" placeholder="Pilot callsign">
-        <label for="account-email">EMAIL</label><input id="account-email" type="email" autocomplete="email" placeholder="pilot@universe.net">
-        <label for="account-password">PASSWORD</label><input id="account-password" type="password" autocomplete="current-password" placeholder="At least 8 characters">
-        <div class="account-actions"><button class="modal-primary" id="account-signin">SIGN IN</button><button class="modal-secondary" id="account-signup">CREATE ACCOUNT</button></div>
-        <button class="account-signout" id="account-signout" hidden>SIGN OUT</button>
-        <small class="account-footnote">Email confirmation may be required. Never share your password or authentication code.</small>
+      <form class="account-panel" id="account-form" autocomplete="on">
+        <button class="modal-close" id="account-close" type="button" aria-label="Close account panel">×</button>
+        <div class="modal-eyebrow">ASTROSPACE IDENTITY / SECURE PILOT REGISTRY</div>
+        <h2 id="account-heading">PILOT <em>IDENTITY.</em></h2>
+        <p class="account-copy">Sign in to sync your expedition and join the pilot network. You can play and save locally without an online account.</p>
+        <div class="account-status" id="account-status" role="status" aria-live="polite">CHECKING ACCOUNT SERVICE…</div>
+        <div id="account-name-field" hidden><label for="account-name">PILOT CALLSIGN</label><input id="account-name" maxlength="24" minlength="2" autocomplete="nickname" placeholder="2–24 character callsign"></div>
+        <label for="account-email">EMAIL</label><input id="account-email" type="email" autocomplete="email" required placeholder="pilot@universe.net">
+        <label for="account-password">PASSWORD</label><input id="account-password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters">
+        <div class="account-actions" id="account-actions"><button class="modal-primary" id="account-signin" type="button">SIGN IN</button><button class="modal-secondary" id="account-signup" type="button" hidden>CREATE PILOT ACCOUNT</button></div>
+        <div class="account-links"><button type="button" class="text-action" id="account-mode-toggle">NEW PILOT? CREATE AN ACCOUNT</button><button type="button" class="text-action" id="account-forgot">FORGOT PASSWORD?</button></div>
+        <button class="account-signout" id="account-signout" type="button" hidden>SIGN OUT</button>
+        <small class="account-footnote">Use a unique password. Never share your password or authentication code. Email confirmation may be required.</small>
+      </form>
+    </section>
+    <section class="character-overlay" id="character-overlay" hidden>
+      <div class="character-panel">
+        <header class="modal-heading"><div><small>EXOSUIT CONFIGURATION / PILOT IDENTITY</small><h2>CREATE YOUR <em>EXPLORER.</em></h2><p>Customise your pilot profile and the A.R.I.A. exosuit. Changes preview on the live character and are saved with campaign progress.</p></div><button class="modal-close" id="character-close" type="button" aria-label="Close character editor">×</button></header>
+        <div class="character-layout">
+          <aside class="character-preview">
+            <div class="character-emblem">✧</div><small>LIVE PILOT PREVIEW</small>
+            <b id="character-name-preview">A.R.I.A. — 07</b>
+            <p id="character-class-preview">PATHFINDER / CERAMIC / JADE</p>
+            <span class="character-preview-note">THE MODEL IN THE WORLD UPDATES AS YOU CHANGE YOUR LOADOUT.</span>
+          </aside>
+          <div class="character-fields">
+            <label for="character-callsign">PILOT CALLSIGN</label><input id="character-callsign" maxlength="24" minlength="2" autocomplete="nickname">
+            <label for="character-suit">EXPLORATION FRAME</label><select id="character-suit"><option value="pathfinder">PATHFINDER · BALANCED</option><option value="scout">SCOUT · LIGHTWEIGHT</option><option value="warden">WARDEN · HEAVY</option></select>
+            <label for="character-frame">ARMOUR FINISH</label><select id="character-frame"><option value="ceramic">CERAMIC WHITE</option><option value="obsidian">OBSIDIAN / GRAPHITE</option><option value="dune">DUNE / BRONZE</option></select>
+            <label for="character-accent">ENERGY SIGNATURE</label><select id="character-accent"><option value="jade">JADE / CYAN</option><option value="amber">AMBER / SOLAR</option><option value="violet">VIOLET / QUANTUM</option></select>
+            <div class="character-actions"><button class="modal-primary" id="character-save" type="button">SAVE PILOT & LOADOUT</button><button class="modal-secondary" id="character-reset" type="button">RESTORE DEFAULT</button></div>
+          </div>
+        </div>
       </div>
     </section>
     <section class="settings-overlay" id="settings-overlay" hidden>
@@ -180,6 +204,7 @@
           <label for="sensitivity-slider">LOOK SENSITIVITY <b id="sensitivity-value">100%</b></label><input id="sensitivity-slider" type="range" min="40" max="180" value="100">
           <label class="check-setting"><input id="invert-look" type="checkbox"> INVERT VERTICAL LOOK</label>
           <label class="check-setting"><input id="reduced-motion" type="checkbox"> REDUCE CAMERA MOTION</label>
+          <label class="check-setting"><input id="adaptive-quality" type="checkbox" checked> ADAPT RENDER SCALE TO FPS</label>
           </section>
           <section><h3>ACOUSTIC MIXER</h3><label for="music-volume">AMBIENT SCORE <b id="music-value">24%</b></label><input id="music-volume" type="range" min="0" max="100" value="24">
           <label for="ambience-volume">WORLD AMBIENCE <b id="ambience-value">22%</b></label><input id="ambience-volume" type="range" min="0" max="100" value="22">
@@ -237,6 +262,6 @@
       </div>
     </div>
   </main>
-  <script type="module" src="/play/play.js?v=landscape-master-r9"></script>
+  <script type="module" src="/play/play.js?v=player-systems-r10"></script>
 </body>
 </html>

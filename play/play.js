@@ -10,8 +10,10 @@ const WORLDS=PLANETS;
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
 const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const toast=msg=>{const n=$("toast-message");n.textContent=msg;n.classList.add("visible");clearTimeout(toast.timer);toast.timer=setTimeout(()=>n.classList.remove("visible"),2900);};
-const freshSave=()=>({regionCursor:0,taskProgress:{},completedRegions:[],completedPlanets:[],bonusFound:[],unlockedWorlds:["kharon"],flightUnlocked:false,shards:0,currentWorld:"kharon",introSeen:false,discoveries:0});
-function loadSave(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return freshSave();const p=JSON.parse(raw),b=freshSave();return {...b,...p,taskProgress:p.taskProgress&&typeof p.taskProgress==="object"?p.taskProgress:{},completedRegions:Array.isArray(p.completedRegions)?p.completedRegions:[],completedPlanets:Array.isArray(p.completedPlanets)?p.completedPlanets:[],bonusFound:Array.isArray(p.bonusFound)?p.bonusFound:[],unlockedWorlds:Array.isArray(p.unlockedWorlds)?p.unlockedWorlds:["kharon"],regionCursor:clamp(Number(p.regionCursor)||0,0,REGIONS.length-1)};}catch{return freshSave();}}
+const DEFAULT_CHARACTER={callsign:"A.R.I.A. — 07",suit:"pathfinder",frame:"ceramic",accent:"jade"};
+const freshSave=()=>({regionCursor:0,taskProgress:{},completedRegions:[],completedPlanets:[],bonusFound:[],unlockedWorlds:["kharon"],flightUnlocked:false,shards:0,currentWorld:"kharon",introSeen:false,discoveries:0,character:{...DEFAULT_CHARACTER}});
+
+function loadSave(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return freshSave();const p=JSON.parse(raw),b=freshSave();return {...b,...p,taskProgress:p.taskProgress&&typeof p.taskProgress==="object"?p.taskProgress:{},completedRegions:Array.isArray(p.completedRegions)?p.completedRegions:[],completedPlanets:Array.isArray(p.completedPlanets)?p.completedPlanets:[],bonusFound:Array.isArray(p.bonusFound)?p.bonusFound:[],unlockedWorlds:Array.isArray(p.unlockedWorlds)?p.unlockedWorlds:["kharon"],regionCursor:clamp(Number(p.regionCursor)||0,0,REGIONS.length-1),character:{...DEFAULT_CHARACTER,...(p.character&&typeof p.character==="object"?p.character:{})}};}catch{return freshSave();}}
 const save=loadSave();
 let THREE,scene,camera,renderer,clock,avatar,worldRoot,terrain,skyShell=null,sunLight=null,fillLight=null,frontFillLight=null,worldGlow=null,transitRoot=null,travelSequence=null,relays=[],missionEntities=[],secretEntities=[],activeEventEntities=[],currentRegion=REGIONS[Math.min(save.regionCursor,REGIONS.length-1)],currentWorld=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];
 let accountSession=null,accountConfigured=false,cloudSaveTimer=null,stepAccumulator=0,eventNextAt=55,eventUntil=0,activeEvent="",audioStarted=false,uiSystems=null,environmentTarget=null,settings={quality:(()=>{try{const q=JSON.parse(localStorage.getItem("astrospace-settings-v2")||"{}").quality;return ["performance","balanced","cinematic","4k","8k"].includes(q)?q:"balanced";}catch{return "balanced";}})(),fov:58,sensitivity:1,invert:false,reducedMotion:false,music:.24,ambience:.22,sfx:.55,subtitles:true,hud:true};
@@ -153,13 +155,13 @@ function initGame(){
  fillLight=new THREE.DirectionalLight(currentWorld.accent,1.1);fillLight.position.set(180,85,210);scene.add(fillLight);
  frontFillLight=new THREE.DirectionalLight(currentWorld.palette[3],.58);frontFillLight.position.set(-60,40,180);scene.add(frontFillLight);
  worldGlow=new THREE.PointLight(currentWorld.accent,19,250,2);worldGlow.position.set(0,45,0);scene.add(worldGlow);
- createSky();avatar=createRobot();scene.add(avatar.group);buildWorld(currentWorld.id,false);bindUI();
+ createSky();avatar=createRobot(normaliseCharacter(save.character));scene.add(avatar.group);buildWorld(currentWorld.id,false);bindUI();
  uiSystems=mountSocialUI({
   toast,
   getWorld:()=>currentWorld,
   getRegion:()=>currentRegion,
   applyGraphics:(prefs)=>applyGraphicsSettings(prefs),
-  onSession:async(session)=>{accountSession=session||null;accountConfigured=!!AccountSystem.getSupabase();if(session){try{const cloud=await AccountSystem.loadCloudProgress();const score=(v)=>((v?.completedRegions?.length||0)*4)+Object.values(v?.taskProgress||{}).filter(t=>t?.complete).length;if(cloud&&score(cloud)>score(save)){Object.assign(save,cloud);save.regionCursor=clamp(Number(save.regionCursor)||0,0,REGIONS.length-1);currentRegion=REGIONS[save.regionCursor];currentWorld=PLANETS.find(w=>w.id===currentRegion.planetId)||PLANETS[0];buildWorld(currentWorld.id,false);toast("CLOUD EXPEDITION RESTORED");}else persist();}catch(error){console.warn("Cloud save not ready",error);}}else{accountSession=null;}},
+  onSession:async(session)=>{accountSession=session||null;accountConfigured=!!AccountSystem.getSupabase();if(session){try{const cloud=await AccountSystem.loadCloudProgress();const score=(v)=>((v?.completedRegions?.length||0)*4)+Object.values(v?.taskProgress||{}).filter(t=>t?.complete).length;if(cloud&&score(cloud)>score(save)){Object.assign(save,cloud);save.character=normaliseCharacter(cloud.character||save.character);applyCharacterProfile(save.character);save.regionCursor=clamp(Number(save.regionCursor)||0,0,REGIONS.length-1);currentRegion=REGIONS[save.regionCursor];currentWorld=PLANETS.find(w=>w.id===currentRegion.planetId)||PLANETS[0];buildWorld(currentWorld.id,false);toast("CLOUD EXPEDITION RESTORED");}else persist();}catch(error){console.warn("Cloud save not ready",error);}}else{accountSession=null;}},
  });
  resize();
  window.addEventListener("resize",resize);window.addEventListener("keydown",onKeyDown);window.addEventListener("keyup",e=>keys.delete(e.code));window.addEventListener("blur",()=>{keys.clear();touchKeys.clear();});
@@ -169,6 +171,14 @@ function initGame(){
  updateUI();requestAnimationFrame(animate);
 }
 function bindUI(){
+ $("character-button").addEventListener("click",openCharacterEditor);
+ $("character-close").addEventListener("click",()=>{$("character-overlay").hidden=true;applyCharacterProfile(save.character);});
+ $("character-save").addEventListener("click",saveCharacterProfile);
+ $("character-reset").addEventListener("click",()=>{
+  $("character-callsign").value=DEFAULT_CHARACTER.callsign;$("character-suit").value=DEFAULT_CHARACTER.suit;
+  $("character-frame").value=DEFAULT_CHARACTER.frame;$("character-accent").value=DEFAULT_CHARACTER.accent;updateCharacterPreview();
+ });
+ ["character-callsign","character-suit","character-frame","character-accent"].forEach(id=>$(id).addEventListener("input",updateCharacterPreview));
  $("begin-button").addEventListener("click",async()=>{audioStarted=!!await AudioSystem.startAudio();$("intro-overlay").hidden=true;save.introSeen=true;persist();toast("A.R.I.A. ONLINE // "+currentRegion.name+" // COMPLETE THE REGION TO PROCEED");});
  $("atlas-button").addEventListener("click",openAtlas);$("flight-button").addEventListener("click",toggleFlight);
  $("region-button").addEventListener("click",()=>{$("region-overlay").hidden=false;updateRegionMap();});
@@ -187,7 +197,7 @@ function onKeyDown(e){
  if(travelSequence){if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();return;}
  if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();
  if(e.repeat&&["KeyE","KeyF","KeyM","KeyG","KeyJ","KeyR","KeyP"].includes(e.code))return;
- keys.add(e.code);if(e.code==="KeyE")interact();if(e.code==="KeyF")hitBoss();if(e.code==="KeyM")openAtlas();if(e.code==="KeyJ"){$("region-overlay").hidden=!$("region-overlay").hidden;updateRegionMap();}if(e.code==="KeyR")scanPulse();if(e.code==="KeyP")togglePhotoMode();if(e.code==="KeyG")toggleFlight();if(e.code==="Escape"){["atlas-overlay","region-overlay","community-overlay","account-overlay","settings-overlay","story-modal"].forEach(id=>$(id).hidden=true);dragging=false;}if(e.code==="Space"&&!flightMode)jump();
+ keys.add(e.code);if(e.code==="KeyE")interact();if(e.code==="KeyF")hitBoss();if(e.code==="KeyC")openCharacterEditor();if(e.code==="KeyM")openAtlas();if(e.code==="KeyJ"){$("region-overlay").hidden=!$("region-overlay").hidden;updateRegionMap();}if(e.code==="KeyR")scanPulse();if(e.code==="KeyP")togglePhotoMode();if(e.code==="KeyG")toggleFlight();if(e.code==="Escape"){["atlas-overlay","region-overlay","community-overlay","account-overlay","settings-overlay","story-modal"].forEach(id=>$(id).hidden=true);dragging=false;}if(e.code==="Space"&&!flightMode)jump();
 }
 function onPointerDown(e){if(travelSequence||e.button!==0)return;dragging=true;lastX=e.clientX;lastY=e.clientY;$("game-canvas").setPointerCapture?.(e.pointerId);}
 function onPointerMove(e){if(travelSequence||!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.0037*settings.sensitivity;pitch=clamp(pitch+dy*.0022*settings.sensitivity*(settings.invert?-1:1),-.12,.72);}
@@ -663,13 +673,25 @@ function createRegionalLandmark(region){
  return group;
 }
 
-function createRobot(){
+function createRobot(profile={}){
  const root=new THREE.Group();
- const ceramic=new THREE.MeshPhysicalMaterial({color:"#c8d5d3",metalness:.38,roughness:.29,clearcoat:.82,clearcoatRoughness:.2});
- const alloy=new THREE.MeshPhysicalMaterial({color:"#526970",metalness:.78,roughness:.3,clearcoat:.55});
- const dark=new THREE.MeshStandardMaterial({color:"#12242b",metalness:.68,roughness:.36});
- const teal=new THREE.MeshStandardMaterial({color:"#64d5c9",metalness:.32,roughness:.28,emissive:"#0b615c",emissiveIntensity:.45});
- const glow=new THREE.MeshStandardMaterial({color:"#d3ffff",emissive:"#36eee8",emissiveIntensity:2.2,metalness:.12,roughness:.2});
+ const framePresets={
+  ceramic:{shell:"#c8d5d3",alloy:"#526970",dark:"#12242b"},
+  obsidian:{shell:"#8798a4",alloy:"#2c3b49",dark:"#0b1722"},
+  dune:{shell:"#cfb58d",alloy:"#796148",dark:"#2c241d"}
+ };
+ const accentPresets={
+  jade:{trim:"#64d5c9",glow:"#d3ffff",emissive:"#36eee8",deep:"#0b615c"},
+  amber:{trim:"#ffb86d",glow:"#fff0d2",emissive:"#ff8b35",deep:"#703718"},
+  violet:{trim:"#bd9dff",glow:"#f1eaff",emissive:"#9b71ff",deep:"#452b76"}
+ };
+ const frame=framePresets[profile.frame]||framePresets.ceramic;
+ const accent=accentPresets[profile.accent]||accentPresets.jade;
+ const ceramic=new THREE.MeshPhysicalMaterial({color:frame.shell,metalness:.38,roughness:.29,clearcoat:.82,clearcoatRoughness:.2});
+ const alloy=new THREE.MeshPhysicalMaterial({color:frame.alloy,metalness:.78,roughness:.3,clearcoat:.55});
+ const dark=new THREE.MeshStandardMaterial({color:frame.dark,metalness:.68,roughness:.36});
+ const teal=new THREE.MeshStandardMaterial({color:accent.trim,metalness:.32,roughness:.28,emissive:accent.deep,emissiveIntensity:.45});
+ const glow=new THREE.MeshStandardMaterial({color:accent.glow,emissive:accent.emissive,emissiveIntensity:2.2,metalness:.12,roughness:.2});
  const add=(parent,geo,mat,x,y,z,sx=1,sy=1,sz=1)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;};
  // Pressure shell, layered chest plates and exposed articulated joints.
  const abdomen=add(root,new THREE.CapsuleGeometry(.43,.58,8,22),dark,0,1.55,0,1,.95,.78);
@@ -733,7 +755,10 @@ function createRobot(){
   add(leg,new THREE.BoxGeometry(.34,.045,.16),teal,0,-1.22,.45);
  }
  const thrusterLeft=nozzleParts[0].flame,thrusterRight=nozzleParts[1].flame;
- return {group:root,leftArm,rightArm,leftLeg,rightLeg,head,thrusterLeft,thrusterRight,packGlow,antenna,nozzleParts};
+ const scale={pathfinder:1,scout:.94,warden:1.065}[profile.suit]||1;
+ root.scale.setScalar(scale);
+ root.userData.characterMaterials={ceramic,alloy,dark,teal,glow};
+ return {group:root,leftArm,rightArm,leftLeg,rightLeg,head,thrusterLeft,thrusterRight,packGlow,antenna,nozzleParts,materials:{ceramic,alloy,dark,teal,glow}};
 }
 function regionState(task){return save.taskProgress[task.id]||(save.taskProgress[task.id]={count:0,hp:task.required||1,collected:[],complete:false});}
 function regionComplete(region=currentRegion){return region.tasks.every(t=>regionState(t).complete);}
@@ -795,6 +820,55 @@ function buildRegionEntities(){
   for(const index of indices){const entity=createMarker(task,role,index,count);missionEntities.push(entity);worldRoot.add(entity);}
  }
  for(const secret of currentRegion.secrets){if(save.bonusFound.includes(secret.id))continue;const entity=createMarker(secret,"bonus",0,1);entity.position.set(secret.x,terrainHeight(secret.x,secret.z,currentWorld),secret.z);entity.userData.secretId=secret.id;secretEntities.push(entity);worldRoot.add(entity);}
+}
+function normaliseCharacter(profile={}){
+ const callsign=String(profile.callsign||DEFAULT_CHARACTER.callsign).trim().slice(0,24)||DEFAULT_CHARACTER.callsign;
+ return {
+  callsign,
+  suit:["pathfinder","scout","warden"].includes(profile.suit)?profile.suit:"pathfinder",
+  frame:["ceramic","obsidian","dune"].includes(profile.frame)?profile.frame:"ceramic",
+  accent:["jade","amber","violet"].includes(profile.accent)?profile.accent:"jade"
+ };
+}
+function applyCharacterProfile(profile){
+ const next=normaliseCharacter(profile);
+ const frames={ceramic:{shell:"#c8d5d3",alloy:"#526970",dark:"#12242b"},obsidian:{shell:"#8798a4",alloy:"#2c3b49",dark:"#0b1722"},dune:{shell:"#cfb58d",alloy:"#796148",dark:"#2c241d"}};
+ const accents={jade:{trim:"#64d5c9",glow:"#d3ffff",emissive:"#36eee8",deep:"#0b615c"},amber:{trim:"#ffb86d",glow:"#fff0d2",emissive:"#ff8b35",deep:"#703718"},violet:{trim:"#bd9dff",glow:"#f1eaff",emissive:"#9b71ff",deep:"#452b76"}};
+ const f=frames[next.frame],a=accents[next.accent];
+ if(avatar?.materials){
+  avatar.materials.ceramic.color.set(f.shell);avatar.materials.alloy.color.set(f.alloy);avatar.materials.dark.color.set(f.dark);
+  avatar.materials.teal.color.set(a.trim);avatar.materials.teal.emissive.set(a.deep);
+  avatar.materials.glow.color.set(a.glow);avatar.materials.glow.emissive.set(a.emissive);
+  avatar.group.scale.setScalar(({pathfinder:1,scout:.94,warden:1.065})[next.suit]||1);
+ }
+ const summary=$("character-summary");
+ if(summary)summary.textContent=next.callsign+" // "+next.suit.toUpperCase()+" // "+next.frame.toUpperCase()+" / "+next.accent.toUpperCase();
+ return next;
+}
+function openCharacterEditor(){
+ const profile=normaliseCharacter(save.character);
+ $("character-callsign").value=profile.callsign;
+ $("character-suit").value=profile.suit;
+ $("character-frame").value=profile.frame;
+ $("character-accent").value=profile.accent;
+ $("character-overlay").hidden=false;
+ updateCharacterPreview();
+}
+function updateCharacterPreview(){
+ const profile=normaliseCharacter({
+  callsign:$("character-callsign").value,
+  suit:$("character-suit").value,frame:$("character-frame").value,accent:$("character-accent").value
+ });
+ applyCharacterProfile(profile);
+ $("character-name-preview").textContent=profile.callsign.toUpperCase();
+ $("character-class-preview").textContent=profile.suit.toUpperCase()+" / "+profile.frame.toUpperCase()+" / "+profile.accent.toUpperCase();
+}
+function saveCharacterProfile(){
+ const profile=updateCharacterPreview();
+ save.character=profile;
+ persist();
+ $("character-overlay").hidden=true;
+ toast("PILOT LOADOUT SAVED // "+profile.callsign.toUpperCase());
 }
 function buildWorld(worldId,travel=true){
  clearWorldEvent();

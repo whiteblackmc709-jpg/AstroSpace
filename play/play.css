@@ -242,3 +242,30 @@
 @media(max-width:680px){.travel-sequence{padding:18px}.travel-sequence-copy{width:100%;padding:16px}.travel-sequence-copy p{font-size:10px}.travel-sequence-steps{flex-wrap:wrap}.travel-sequence-foot{font-size:6px;line-height:1.7}.travel-sequence-foot span:last-child{display:none}}
 
 @media(prefers-reduced-motion:reduce){.travel-sequence,.travel-progress i{transition:none}.travel-sequence-top i{animation:none}}
+
+/* Pilot identity and character creator */
+.account-links{display:flex;justify-content:space-between;gap:12px;margin-top:13px}
+.text-action{padding:6px 0;border:0;background:transparent;color:#8edfd4;font:7px var(--mono);letter-spacing:.08em;text-align:left;text-decoration:underline;cursor:pointer}
+.text-action:hover{color:#efffff}
+.account-actions button[hidden],.account-links button[hidden]{display:none}
+.character-overlay{position:absolute;inset:0;z-index:22;display:grid;place-items:center;padding:22px;background:rgba(1,7,13,.78);backdrop-filter:blur(16px)}
+.character-overlay[hidden]{display:none}
+.character-panel{width:min(900px,95vw);max-height:90dvh;overflow:auto;padding:clamp(18px,2.8vw,32px);background:linear-gradient(145deg,rgba(10,31,44,.985),rgba(3,13,24,.99));border:1px solid rgba(122,231,228,.32);box-shadow:0 28px 100px rgba(0,0,0,.62)}
+.character-layout{display:grid;grid-template-columns:minmax(220px,.82fr) minmax(280px,1.18fr);gap:clamp(18px,3vw,34px);padding-top:22px}
+.character-preview{min-height:310px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 22px;background:radial-gradient(ellipse at 50% 38%,rgba(74,184,170,.22),rgba(7,25,38,.92) 62%);border:1px solid rgba(120,220,211,.22)}
+.character-emblem{width:94px;height:94px;display:grid;place-items:center;border:1px solid rgba(125,235,220,.55);border-radius:50%;font-size:48px;color:#9effe8;box-shadow:0 0 42px rgba(72,220,197,.12),inset 0 0 26px rgba(72,220,197,.12);margin-bottom:20px}
+.character-preview small,.character-preview-note{font:7px/1.7 var(--mono);letter-spacing:.15em;color:#84b9bd}
+.character-preview b{margin-top:9px;font:700 30px/.95 var(--display);color:#effbfa;overflow-wrap:anywhere}
+.character-preview p{margin:11px 0 20px;color:#a4e6da;font:8px var(--mono);letter-spacing:.12em}
+.character-preview-note{max-width:240px;color:#7899a8}
+.character-fields{display:flex;flex-direction:column;justify-content:center}
+.character-fields label{display:block;margin:12px 0 6px;color:#8eaab9;font:7px var(--mono);letter-spacing:.13em}
+.character-fields input,.character-fields select{width:100%;height:42px;padding:0 12px;background:rgba(2,12,22,.82);border:1px solid rgba(145,191,210,.24);color:#edf8fa;font:10px var(--ui);outline:none}
+.character-fields input:focus,.character-fields select:focus{border-color:#7ce0d1}
+.character-actions{display:grid;grid-template-columns:1.3fr 1fr;gap:9px;margin-top:20px}
+.character-actions button{min-height:44px}
+.perf-readout{display:flex;align-items:center;gap:9px;color:#89cfc2;font:7px var(--mono);letter-spacing:.08em;white-space:nowrap}
+.perf-readout b{font-weight:500;color:#e1f7ef}
+@media(max-width:1260px){.top-center{display:none}.game-topbar{gap:12px}.game-brand{min-width:205px}.top-actions{gap:5px}.top-button{padding:0 8px;letter-spacing:.07em}}
+@media(max-width:840px){.character-layout{grid-template-columns:1fr}.character-preview{min-height:190px}.character-emblem{width:62px;height:62px;font-size:30px;margin-bottom:10px}}
+@media(max-width:600px){.character-panel{padding:15px}.character-actions{grid-template-columns:1fr}.account-links{flex-direction:column}}

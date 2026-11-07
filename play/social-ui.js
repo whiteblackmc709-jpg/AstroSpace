@@ -11,6 +11,7 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
   let authConfigured = false;
   let activeChannel = "global";
   let activeChannelKey = "global/universe";
+  let authMode = "signin";
   let volume = (() => {
     try {
       const stored = JSON.parse(localStorage.getItem("astrospace-settings-v2") || "{}");
@@ -20,10 +21,10 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
   let prefs = (() => {
     try {
       return { quality: "balanced", fov: 58, sensitivity: 1, invert: false,
-        reducedMotion: false, subtitles: true, hud: true,
+        reducedMotion: false, adaptiveQuality: true, subtitles: true, hud: true,
         ...JSON.parse(localStorage.getItem("astrospace-settings-v2") || "{}") };
     } catch { return { quality: "balanced", fov: 58, sensitivity: 1, invert: false,
-      reducedMotion: false, subtitles: true, hud: true }; }
+      reducedMotion: false, adaptiveQuality: true, subtitles: true, hud: true }; }
   })();
 
   const savePrefs = () => localStorage.setItem("astrospace-settings-v2", JSON.stringify({ ...prefs, volume }));
@@ -39,6 +40,7 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
     $("sensitivity-slider").value = Math.round(prefs.sensitivity * 100);
     $("invert-look").checked = prefs.invert;
     $("reduced-motion").checked = prefs.reducedMotion;
+    $("adaptive-quality").checked = prefs.adaptiveQuality !== false;
     $("subtitles-toggle").checked = prefs.subtitles;
     $("hud-toggle").checked = prefs.hud;
     $("music-volume").value = Math.round(volume.music * 100);
@@ -234,9 +236,35 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
     } catch (error) { $("chat-state").textContent = "PRIVATE CHANNEL UNAVAILABLE // " + error.message; }
   }
 
-  async function signIn() {
+  function setAuthMode(mode) {
+    authMode = mode === "signup" ? "signup" : "signin";
+    const signingIn = authMode === "signin";
+    $("account-heading").innerHTML = signingIn ? "PILOT <em>IDENTITY.</em>" : "CREATE <em>PILOT ID.</em>";
+    $("account-name-field").hidden = signingIn;
+    $("account-signin").hidden = !signingIn;
+    $("account-signup").hidden = signingIn;
+    $("account-forgot").hidden = !signingIn;
+    $("account-mode-toggle").textContent = signingIn ? "NEW PILOT? CREATE AN ACCOUNT" : "ALREADY REGISTERED? SIGN IN";
+    $("account-password").autocomplete = signingIn ? "current-password" : "new-password";
+  }
+
+  async function resetPassword() {
+    const email = $("account-email").value.trim();
+    if (!email) return setStatus("ENTER YOUR EMAIL ADDRESS FIRST", true);
     try {
-      const data = await Auth.signIn($("account-email").value.trim(), $("account-password").value);
+      await Auth.resetPassword(email);
+      setStatus("PASSWORD RESET LINK SENT // CHECK YOUR EMAIL");
+    } catch (error) {
+      setStatus("RESET REQUEST FAILED // " + error.message, true);
+    }
+  }
+
+  async function signIn() {
+    const email = $("account-email").value.trim().toLowerCase();
+    const password = $("account-password").value;
+    if (!email || !password) return setStatus("ENTER EMAIL AND PASSWORD TO CONTINUE", true);
+    try {
+      const data = await Auth.signIn(email, password);
       await updateSession(data.session);
       toast("PILOT IDENTITY CONNECTED");
       hide("account-overlay");
@@ -244,8 +272,9 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
   }
   async function signUp() {
     const callsign = $("account-name").value.trim();
-    const email = $("account-email").value.trim();
+    const email = $("account-email").value.trim().toLowerCase();
     const password = $("account-password").value;
+    if (!email) return setStatus("ENTER A VALID EMAIL ADDRESS", true);
     if (callsign.length < 2 || callsign.length > 24) return setStatus("CALLSIGN MUST BE 2–24 CHARACTERS", true);
     if (password.length < 8) return setStatus("PASSWORD MUST BE AT LEAST 8 CHARACTERS", true);
     try {
@@ -291,6 +320,9 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
     $("account-button").addEventListener("click", () => show("account-overlay"));
     $("account-close").addEventListener("click", () => hide("account-overlay"));
     $("account-signin").addEventListener("click", signIn);
+    $("account-mode-toggle").addEventListener("click", () => setAuthMode(authMode === "signin" ? "signup" : "signin"));
+    $("account-forgot").addEventListener("click", resetPassword);
+    $("account-form").addEventListener("submit", (event) => { event.preventDefault(); authMode === "signin" ? signIn() : signUp(); });
     $("account-signup").addEventListener("click", signUp);
     $("account-signout").addEventListener("click", signOut);
     $("community-button").addEventListener("click", openCommunity);
@@ -317,12 +349,13 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
     $("settings-close").addEventListener("click", () => hide("settings-overlay"));
     $("settings-reset").addEventListener("click", () => {
       prefs = { quality: "balanced", fov: 58, sensitivity: 1, invert: false,
-        reducedMotion: false, subtitles: true, hud: true };
+        reducedMotion: false, adaptiveQuality: true, subtitles: true, hud: true };
       volume = { music: 0.24, ambience: 0.22, sfx: 0.55 };
       renderSettings();
       savePrefs();
     });
     $("quality-select").addEventListener("change", () => { prefs.quality = $("quality-select").value; applyGraphics?.(prefs); savePrefs(); });
+    $("adaptive-quality").addEventListener("change", () => { prefs.adaptiveQuality = $("adaptive-quality").checked; applyGraphics?.(prefs); savePrefs(); });
     $("fov-slider").addEventListener("input", () => { prefs.fov = Number($("fov-slider").value); updateLabels(); applyGraphics?.(prefs); savePrefs(); });
     $("sensitivity-slider").addEventListener("input", () => { prefs.sensitivity = Number($("sensitivity-slider").value) / 100; updateLabels(); applyGraphics?.(prefs); savePrefs(); });
     $("invert-look").addEventListener("change", () => { prefs.invert = $("invert-look").checked; applyGraphics?.(prefs); savePrefs(); });
@@ -348,6 +381,7 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
   }
 
   bindEvents();
+  setAuthMode("signin");
   renderSettings();
   Auth.initializeAuth(updateSession).then((result) => {
     authConfigured = Boolean(result.configured);
