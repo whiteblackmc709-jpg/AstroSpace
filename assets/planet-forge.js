@@ -1,3 +1,4 @@
+import { createPlanetPbrMaps, createCinematicEnvironment } from "./pbr-surfaces.js?v=pbr-surface-4k-r4";
 const THREE_URL = "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
 
 const WORLDS = {
@@ -20,7 +21,7 @@ const toast=message=>{
   const loader=$("scene-loader");
   try{
     const THREE=await import(THREE_URL);
-    startExperience(THREE);
+    await startExperience(THREE);
     loader?.classList.add("loaded");
     setTimeout(()=>loader?.remove(),850);
   }catch(error){
@@ -30,34 +31,71 @@ const toast=message=>{
   }
 })();
 
-function startExperience(T){
+async function startExperience(T){
   const canvas=$("space-canvas");if(!canvas)throw new Error("Missing #space-canvas");
   const scene=new T.Scene();scene.background=new T.Color("#02050d");
   const camera=new T.PerspectiveCamera(36,1,.1,420);
   const renderer=new T.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
-  renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.34;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
+  renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,(navigator.deviceMemory||4)>=8?2:1.5));
+  const environmentTarget=createCinematicEnvironment(T,renderer);
+  if(environmentTarget)scene.environment=environmentTarget.texture;
   const clock=new T.Clock(),target=new T.Vector3(0,0,0),worldLight=new T.Vector3(-.64,.38,.67).normalize();
   const keys=new Set(),velocity=new T.Vector3();
   let selected=WORLDS.kharon,yaw=.13,pitch=.055,distance=10.7,dragging=false,lastX=0,lastY=0;
   let flightMode=false,qualityHigh=true,eventMode="none";
   const planetGroup=new T.Group();scene.add(planetGroup);
-  const hemi=new T.HemisphereLight(0xa9d6f2,0x101421,.68);scene.add(hemi);
-  const keyLight=new T.DirectionalLight(0xffe7c8,4.35);keyLight.position.set(-9,5,10);scene.add(keyLight);
-  const fillLight=new T.PointLight(0x378edb,34,48,2);fillLight.position.set(8,-6,-8);scene.add(fillLight);
-  const bounceLight=new T.PointLight(0x5ed9db,10,22,2);bounceLight.position.set(-5,-2,5);scene.add(bounceLight);
+  const hemi=new T.HemisphereLight(0xb4cde5,0x0b111d,.48);scene.add(hemi);
+  const keyLight=new T.DirectionalLight(0xffe4c2,3.75);keyLight.position.set(-9,5,10);scene.add(keyLight);
+  const fillLight=new T.PointLight(0x378edb,25,48,2);fillLight.position.set(8,-6,-8);scene.add(fillLight);
+  const bounceLight=new T.PointLight(0x5ed9db,7,22,2);bounceLight.position.set(-5,-2,5);scene.add(bounceLight);
   const starfield=makeStarfield(T,7600,150);scene.add(starfield);
   const star=makeStar(T);star.position.set(-19,8,-35);scene.add(star);
   const distantWorlds=makeDistantWorlds(T);scene.add(distantWorlds);
   const nebula=makeNebula(T);scene.add(nebula);
 
-  const surfaceUniforms={
-    uTime:{value:0},uKind:{value:0},uSeed:{value:14},uEvent:{value:0},
-    uOcean:{value:new T.Color("#071f3e")},uMid:{value:new T.Color("#176b79")},
-    uLand:{value:new T.Color("#4fa66f")},uHigh:{value:new T.Color("#e0d6a5")},uLight:{value:worldLight}
-  };
-  const planetMaterial=new T.ShaderMaterial({uniforms:surfaceUniforms,vertexShader:planetVertex,fragmentShader:planetFragment});
-  const planetMesh=new T.Mesh(new T.SphereGeometry(3.2,256,192),planetMaterial);planetGroup.add(planetMesh);
+  let surfaceMaps=null,surfaceMapsWorldId=null,surfaceRevision=0;
+  const planetMaterial=new T.MeshPhysicalMaterial({
+    color:0xffffff,roughness:.82,metalness:.018,clearcoat:.08,clearcoatRoughness:.42,
+    envMapIntensity:1.08,displacementScale:.048,displacementBias:-.024
+  });
+  const planetMesh=new T.Mesh(new T.SphereGeometry(3.2,384,256),planetMaterial);planetGroup.add(planetMesh);
+  async function refreshPlanetSurface(world,quality=qualityHigh?"cinematic":"balanced"){
+    const revision=++surfaceRevision;
+    const tag=$("scene-world-tag");
+    if(tag){tag.dataset.textureProgress="0";tag.textContent=world.name.toUpperCase()+" // BUILDING PBR SURFACE";}
+    let nextMaps;
+    try{
+      nextMaps=await createPlanetPbrMaps(T,renderer,world,{quality,aspect:"equirectangular",onProgress:value=>{
+        if(revision===surfaceRevision&&value<1)$("scene-world-tag").dataset.textureProgress=Math.round(value*100);
+      }});
+    }catch(error){
+      console.error("Planet PBR texture synthesis failed",world.id,error);
+      if(revision===surfaceRevision&&selected.id===world.id&&surfaceMapsWorldId!==world.id){
+        surfaceMaps?.dispose();surfaceMaps=null;surfaceMapsWorldId=world.id;
+        planetMaterial.map=null;planetMaterial.normalMap=null;planetMaterial.roughnessMap=null;
+        planetMaterial.bumpMap=null;planetMaterial.displacementMap=null;
+        planetMaterial.color.set(world.colors[1]);planetMaterial.roughness=.92;planetMaterial.metalness=.012;
+        planetMaterial.needsUpdate=true;
+      }
+      if(tag&&revision===surfaceRevision)tag.textContent=world.name.toUpperCase()+" // PBR FALLBACK";
+      return;
+    }
+    if(revision!==surfaceRevision||selected.id!==world.id){nextMaps.dispose();return;}
+    const previous=surfaceMaps;surfaceMaps=nextMaps;surfaceMapsWorldId=world.id;
+    planetMaterial.map=nextMaps.albedo;planetMaterial.normalMap=nextMaps.normal;
+    planetMaterial.roughnessMap=nextMaps.roughness;planetMaterial.bumpMap=nextMaps.heightMap;
+    planetMaterial.displacementMap=nextMaps.heightMap;planetMaterial.normalScale.set(world.kind===5?1.35:1.18,world.kind===5?1.35:1.18);
+    planetMaterial.roughness=world.kind===1?.76:world.kind===4?.46:world.kind===5?.5:.88;
+    planetMaterial.clearcoat=world.kind===1?.24:world.kind===5?.2:world.kind===4?.1:.04;
+    planetMaterial.clearcoatRoughness=world.kind===1?.22:world.kind===5?.28:.44;
+    planetMaterial.envMapIntensity=world.kind===1?1.25:world.kind===4?.9:1.08;
+    planetMaterial.needsUpdate=true;
+    $("scene-world-tag").dataset.textureResolution=nextMaps.width+"×"+nextMaps.height;
+    $("scene-world-tag").dataset.textureProgress="100";
+    $("scene-world-tag").textContent=world.name.toUpperCase()+" // PBR "+(nextMaps.width>=4096?"4K":nextMaps.width>=2048?"2K":"1K");
+    previous?.dispose();
+  }
   const cloudUniforms={uTime:{value:0},uKind:{value:0},uSeed:{value:14},uTint:{value:new T.Color("#e9fff5")}};
   const cloudMaterial=new T.ShaderMaterial({uniforms:cloudUniforms,vertexShader:cloudVertex,fragmentShader:cloudFragment,transparent:true,depthWrite:false,side:T.FrontSide});
   const clouds=new T.Mesh(new T.SphereGeometry(3.235,192,128),cloudMaterial);planetGroup.add(clouds);
@@ -75,7 +113,7 @@ function startExperience(T){
   const ship=makeShip(T);ship.position.set(-4.6,-1.4,3.5);ship.scale.setScalar(.74);scene.add(ship);
   const shipGlow=new T.PointLight(0x65f0ec,5.5,9,2);ship.add(shipGlow);shipGlow.position.set(0,0,1.2);
 
-  applyWorld(selected,true);resize();
+  await applyWorld(selected,true);resize();
   window.addEventListener("resize",resize);
   canvas.addEventListener("pointerdown",onPointerDown);
   window.addEventListener("pointermove",onPointerMove);
@@ -111,17 +149,16 @@ function startExperience(T){
   function resetCamera(){yaw=.13;pitch=.055;distance=10.7;target.set(0,0,0);toast("ORBITAL FRAME RECALIBRATED");}
   function selectWorld(id){
     const world=WORLDS[id];if(!world)return;
-    selected=world;applyWorld(world,false);resetCamera();eventMode="none";
-    surfaceUniforms.uEvent.value=0;eventDebris.visible=false;blackHole.visible=false;flare.visible=false;updateEventButtons();
+    selected=world;eventMode="none";applyWorld(world,false);resetCamera();
+    eventDebris.visible=false;blackHole.visible=false;flare.visible=false;updateEventButtons();
     document.querySelectorAll("[data-planet]").forEach(b=>{
       b.classList.toggle("selected",b.dataset.planet===id);b.setAttribute("aria-pressed",b.dataset.planet===id?"true":"false");
     });
     toast("WORLD ASSET LOADED // "+world.name.toUpperCase());
   }
   function applyWorld(world,initial){
-    const c=world.colors.map(v=>new T.Color(v));
-    surfaceUniforms.uKind.value=world.kind;surfaceUniforms.uSeed.value=world.seed;
-    surfaceUniforms.uOcean.value.copy(c[0]);surfaceUniforms.uMid.value.copy(c[1]);surfaceUniforms.uLand.value.copy(c[2]);surfaceUniforms.uHigh.value.copy(c[3]);surfaceUniforms.uEvent.value=0;
+    planetMaterial.emissive.set(world.kind===2?"#7b2b12":world.kind===1?"#064b40":world.kind===3?"#483184":world.kind===5?"#174d62":"#000000");
+    planetMaterial.emissiveIntensity=world.kind===2?.18:world.kind===1?.06:world.kind===5?.035:0;
     cloudUniforms.uKind.value=world.kind;cloudUniforms.uSeed.value=world.seed;cloudUniforms.uTint.value.set(world.cloudTint);clouds.visible=world.clouds;
     atmosphereMaterial.uniforms.uColor.value.set(world.atmosphereColor);
     atmosphereMaterial.uniforms.uPower.value=world.kind===3?2.9:world.kind===5?2.15:2.4;
@@ -144,6 +181,7 @@ function startExperience(T){
     const coords={kharon:"14.82.06 N / 031.44.19 E",vespera:"03.17.62 S / 118.08.42 E",cinder:"46.22.91 S / 072.51.03 E",nox:"00.00.00 / GRAVITY NULL",aureon:"28.40.17 N / 204.11.62 E",glaciera:"71.09.48 N / 009.36.21 E"};
     $("coordinates").textContent=coords[world.id];$("view-mode-label").textContent=flightMode?"PILOT FLIGHT":"ORBITAL OBSERVATION";
     if(!initial)$("flight-toggle-label").textContent=flightMode?"EXIT FLIGHT":"ENGAGE FLIGHT";
+    return refreshPlanetSurface(world,qualityHigh?"cinematic":"balanced");
   }
   function deepScan(){
     const n=selected.signal;$("signal-value").textContent=n+"%";$("signal-fill").style.width=n+"%";
@@ -152,9 +190,11 @@ function startExperience(T){
   }
   function setEvent(event){
     eventMode=eventMode===event?"none":event;
-    surfaceUniforms.uEvent.value=eventMode==="fracture"?1:eventMode==="flare"?2:eventMode==="lensing"?3:0;
+    const baseGlow=selected.kind===2?["#7b2b12",.18]:selected.kind===1?["#064b40",.06]:selected.kind===3?["#483184",.05]:selected.kind===5?["#174d62",.035]:["#000000",0];
+    const eventGlow=eventMode==="fracture"?["#ff4e20",1.15]:eventMode==="flare"?["#ffad62",.48]:eventMode==="lensing"?["#734bd0",.32]:baseGlow;
+    planetMaterial.emissive.set(eventGlow[0]);planetMaterial.emissiveIntensity=eventGlow[1];
     eventDebris.visible=eventMode==="fracture";blackHole.visible=eventMode==="lensing";flare.visible=eventMode==="flare";
-    keyLight.intensity=eventMode==="flare"?6.4:4.35;fillLight.intensity=eventMode==="lensing"?52:34;
+    keyLight.intensity=eventMode==="flare"?6.4:3.75;fillLight.intensity=eventMode==="lensing"?38:25;
     updateEventButtons();toast(eventMode==="none"?"COSMIC EVENT CONTAINED":eventMode.toUpperCase()+" EVENT SIMULATED");
   }
   function updateEventButtons(){
@@ -173,18 +213,20 @@ function startExperience(T){
     toast(flightMode?"PILOT LINK ESTABLISHED":"RETURNING TO ORBITAL OBSERVATION");
   }
   function toggleQuality(){
-    qualityHigh=!qualityHigh;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,qualityHigh?1.75:1.05));
-    planetMesh.geometry.dispose();planetMesh.geometry=new T.SphereGeometry(3.2,qualityHigh?256:128,qualityHigh?192:96);
+    qualityHigh=!qualityHigh;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,qualityHigh?2:1.15));
+    planetMesh.geometry.dispose();planetMesh.geometry=new T.SphereGeometry(3.2,qualityHigh?384:192,qualityHigh?256:128);
+    void refreshPlanetSurface(selected,qualityHigh?"cinematic":"performance");
     clouds.geometry.dispose();clouds.geometry=new T.SphereGeometry(3.235,qualityHigh?192:96,qualityHigh?128:64);
-    atmosphere.geometry.dispose();atmosphere.geometry=new T.SphereGeometry(3.39,qualityHigh?160:80,qualityHigh?112:56);
+    atmosphere.geometry.dispose();atmosphere.geometry=new T.SphereGeometry(3.39,qualityHigh?192:96,qualityHigh?128:64);
     $("quality-toggle").textContent=qualityHigh?"◈":"◇";
-    toast(qualityHigh?"PLANET FORGE // ULTRA":"PLANET FORGE // PERFORMANCE");
+    $("quality-toggle").title=qualityHigh?"ULTRA // 2K–4K PBR MAPS":"PERFORMANCE // 1K PBR MAPS";
+    toast(qualityHigh?"PLANET FORGE // ULTRA PBR":"PLANET FORGE // PERFORMANCE");
   }
 
   function animate(){
     requestAnimationFrame(animate);
     const dt=Math.min(clock.getDelta(),.04),time=clock.elapsedTime;
-    surfaceUniforms.uTime.value=time;cloudUniforms.uTime.value=time;atmoUniforms.uTime.value=time;
+    cloudUniforms.uTime.value=time;atmoUniforms.uTime.value=time;
     planetGroup.rotation.y+=selected.rotation*60*dt;clouds.rotation.y+=selected.rotation*108*dt;
     rings.rotation.y+=.000075*60*dt;moonOrbit.rotation.y+=.00034*60*dt;
     features.fragments.rotation.y+=.00021*60*dt;eventDebris.rotation.y+=.00085*60*dt;

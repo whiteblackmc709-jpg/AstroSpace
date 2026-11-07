@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/play.css?v=cinematic-hud-3">
+  <link rel="stylesheet" href="/play/play.css?v=exosuit-transit-r5">
 </head>
 <body>
   <main class="game-shell">
@@ -27,6 +27,11 @@
         <span id="world-sector">SECTOR 01 · THE FIRST LIGHT FRONTIER</span>
       </div>
       <div class="top-actions">
+        <button class="top-button" id="region-button" type="button"><span>⌖</span> REGIONS <kbd>J</kbd></button>
+        <button class="top-button" id="audio-button" type="button"><span>♫</span> AUDIO <kbd>V</kbd></button>
+        <button class="top-button" id="community-button" type="button"><span>◌</span> COMMONS</button>
+        <button class="top-button" id="settings-button" type="button"><span>⚙</span> SETTINGS</button>
+        <button class="top-button" id="account-button" type="button"><span>◉</span> ACCOUNT</button>
         <button class="top-button" id="atlas-button" type="button" disabled> <span>◎</span> STAR ATLAS <kbd>M</kbd> </button>
         <button class="top-button" id="flight-button" type="button" disabled><span>✧</span> AETHER FLIGHT <kbd>G</kbd></button>
         <a class="exit-button" href="/">EXIT GAME</a>
@@ -34,18 +39,19 @@
     </header>
 
     <section class="left-hud">
-      <div class="hud-kicker"><span class="kicker-line"></span> EXPEDITION PROTOCOL <b>PROLOGUE 01</b></div>
+      <div class="hud-kicker"><span class="kicker-line"></span> EXPEDITION PROTOCOL <b>24 REGIONS / 06 WORLDS</b></div>
       <div class="quest-card">
-        <div class="quest-card-top"><span id="quest-phase">FIRST CONTACT</span><span class="quest-count" id="quest-count">00 / 03</span></div>
-        <h1 id="quest-title">THE FIRST<br><em>SIGNAL</em></h1>
-        <p id="quest-description">Three ancient relays are sleeping beneath Elyndra's canopy. Find them and bring the old network back to life.</p>
+        <div class="quest-card-top"><span id="quest-phase">REGIONAL CAMPAIGN</span><span class="quest-count" id="quest-count">AREA 01 / 24</span></div>
+        <h1 id="quest-title">ASTERFALL<br><em>EXPANSE</em></h1>
+        <p id="quest-description">Complete every regional contract, recover hidden relics and defeat the guardian to open the next frontier.</p>
         <div class="quest-progress"><span id="quest-progress-fill"></span></div>
         <div class="objective-list" id="objective-list">
           <div class="objective-row"><span class="objective-state"></span><span>Locate the first ancient relay</span></div>
           <div class="objective-row"><span class="objective-state"></span><span>Synchronise three signal nodes</span></div>
           <div class="objective-row"><span class="objective-state"></span><span>Return to the landing craft</span></div>
         </div>
-        <div class="quest-reward"><span>MISSION REWARD</span><b id="quest-reward">AETHER DRIVE // LOCKED</b></div>
+        <div class="quest-reward"><span>REGION STATUS</span><b id="quest-reward">0% // INCOMPLETE</b></div>
+        <button class="region-advance" id="region-advance" type="button" hidden>ENTER NEXT FRONTIER <span>↗</span></button>
       </div>
       <div class="suit-card">
         <div class="suit-avatar"><span class="avatar-core"></span><span class="avatar-ring"></span></div>
@@ -66,7 +72,7 @@
       </div>
       <div class="resource-stack">
         <div class="resource"><span class="resource-icon">✧</span><span><small>QUANTUM SHARDS</small><b id="shard-count">000</b></span></div>
-        <div class="resource"><span class="resource-icon signal-icon">⌁</span><span><small>RELAY SYNC</small><b id="relay-count">0 / 3</b></span></div>
+        <div class="resource"><span class="resource-icon signal-icon">⌁</span><span><small>AREA CLEAR</small><b id="relay-count">0 / 4</b></span></div>
       </div>
     </section>
 
@@ -78,6 +84,14 @@
       <div class="flight-altitude"><small>ALTITUDE</small><b id="altitude-value">000 M</b></div>
       <div class="flight-speed"><small>VELOCITY</small><b id="flight-speed">000 KM/H</b></div>
     </div>
+
+    <section class="travel-sequence" id="travel-sequence" hidden aria-live="polite" aria-atomic="true">
+      <div class="travel-sequence-top"><span><i></i> AETHER DRIVE // PILOT-POWERED TRANSIT</span><b id="travel-destination">DESTINATION</b></div>
+      <div class="travel-sequence-copy"><small>INTERPLANETARY FLIGHT PROTOCOL</small><h2 id="travel-phase">ATMOSPHERIC ASCENT</h2><p id="travel-detail">The explorer is climbing under personal propulsion.</p></div>
+      <div class="travel-progress"><i id="travel-progress-fill"></i></div>
+      <div class="travel-sequence-steps"><span>01 ASCENT</span><span>02 ORBIT</span><span>03 DEEP SPACE</span><span>04 RE-ENTRY</span></div>
+      <div class="travel-sequence-foot"><span>NO CARRIER CRAFT // EXOSUIT AETHER THRUSTERS</span><span>FLIGHT CONTROL AUTONOMOUS</span></div>
+    </section>
 
     <section class="bottom-hud">
       <div class="location-card">
@@ -105,13 +119,96 @@
       </div>
     </div>
 
+
+    <section class="region-overlay" id="region-overlay" hidden>
+      <div class="large-modal">
+        <header class="modal-heading"><div><small>STELLAR NAVIGATION / PROGRESSION LOCKED</small><h2>REGION <em>ATLAS</em></h2><p>Each region must reach 100% before the next passage activates.</p></div><button class="modal-close" id="region-close">×</button></header>
+        <div class="region-map-meta" id="region-map-meta">ELYNDRA / AREA 01 OF 04</div>
+        <div class="region-grid" id="region-grid"></div>
+      </div>
+    </section>
+    <section class="community-overlay" id="community-overlay" hidden>
+      <div class="large-modal community-modal">
+        <header class="modal-heading"><div><small>ASTROSPACE NETWORK / LIVE PILOT LINK</small><h2>THE <em>COMMONS</em></h2><p>Global transmission, regional channels, pilot friends and direct messages.</p></div><button class="modal-close" id="community-close">×</button></header>
+        <nav class="community-tabs">
+          <button class="active" data-community-tab="chat">CHAT</button>
+          <button data-community-tab="friends">FRIENDS</button>
+          <button data-community-tab="requests">REQUESTS <span id="request-count">0</span></button>
+        </nav>
+        <section class="community-pane" id="community-chat-pane">
+          <div class="chat-channels">
+            <button class="active" data-chat-channel="global">GLOBAL</button>
+            <button data-chat-channel="planet">PLANET</button>
+            <button data-chat-channel="region">REGION</button>
+            <span id="chat-channel-label">GLOBAL / UNIVERSE</span>
+          </div>
+          <div class="chat-state" id="chat-state">SIGN IN TO CONNECT TO THE LIVE PILOT NETWORK.</div>
+          <div class="chat-messages" id="chat-messages" aria-live="polite"></div>
+          <form class="chat-compose" id="chat-form"><input id="chat-input" maxlength="1200" placeholder="Transmit a message…" autocomplete="off"><button type="submit">SEND ↗</button></form>
+        </section>
+        <section class="community-pane social-pane" id="community-friends-pane" hidden>
+          <div class="friend-search"><input id="player-search" placeholder="Search pilots by callsign…"><button id="player-search-button">SEARCH</button></div>
+          <div class="social-subhead">SEARCH RESULTS</div><div class="social-list" id="player-search-results"></div>
+          <div class="social-subhead">YOUR FLIGHT CREW</div><div class="social-list" id="friend-list"></div>
+        </section>
+        <section class="community-pane social-pane" id="community-requests-pane" hidden>
+          <div class="social-subhead">INCOMING FRIEND REQUESTS</div><div class="social-list" id="friend-request-list"></div>
+        </section>
+      </div>
+    </section>
+    <section class="account-overlay" id="account-overlay" hidden>
+      <div class="account-panel">
+        <button class="modal-close" id="account-close">×</button>
+        <div class="modal-eyebrow">ASTROSPACE IDENTITY / PILOT REGISTRY</div><h2>YOUR <em>EXPEDITION.</em></h2>
+        <p class="account-copy">Create a pilot identity to sync progress and join the global network. Local campaign progress remains available without an account.</p>
+        <div class="account-status" id="account-status">CHECKING ACCOUNT SERVICE…</div>
+        <label for="account-name">CALLSIGN</label><input id="account-name" maxlength="24" autocomplete="nickname" placeholder="Pilot callsign">
+        <label for="account-email">EMAIL</label><input id="account-email" type="email" autocomplete="email" placeholder="pilot@universe.net">
+        <label for="account-password">PASSWORD</label><input id="account-password" type="password" autocomplete="current-password" placeholder="At least 8 characters">
+        <div class="account-actions"><button class="modal-primary" id="account-signin">SIGN IN</button><button class="modal-secondary" id="account-signup">CREATE ACCOUNT</button></div>
+        <button class="account-signout" id="account-signout" hidden>SIGN OUT</button>
+        <small class="account-footnote">Email confirmation may be required. Never share your password or authentication code.</small>
+      </div>
+    </section>
+    <section class="settings-overlay" id="settings-overlay" hidden>
+      <div class="settings-panel">
+        <header class="modal-heading"><div><small>CONFIGURATION / ACCESSIBILITY / AUDIO</small><h2>FLIGHT <em>SETTINGS</em></h2></div><button class="modal-close" id="settings-close">×</button></header>
+        <div class="settings-grid">
+          <section><h3>VISUAL QUALITY</h3><label for="quality-select">RENDER PROFILE</label><select id="quality-select"><option value="performance">PERFORMANCE</option><option value="balanced" selected>BALANCED</option><option value="cinematic">CINEMATIC</option></select>
+          <p class="setting-note" id="texture-quality-status" role="status">PBR SURFACE MAPS // 2K TARGET · ADAPTIVE TO GPU</p>
+          <label for="fov-slider">FIELD OF VIEW <b id="fov-value">58°</b></label><input id="fov-slider" type="range" min="48" max="82" value="58">
+          <label for="sensitivity-slider">LOOK SENSITIVITY <b id="sensitivity-value">100%</b></label><input id="sensitivity-slider" type="range" min="40" max="180" value="100">
+          <label class="check-setting"><input id="invert-look" type="checkbox"> INVERT VERTICAL LOOK</label>
+          <label class="check-setting"><input id="reduced-motion" type="checkbox"> REDUCE CAMERA MOTION</label>
+          </section>
+          <section><h3>ACOUSTIC MIXER</h3><label for="music-volume">AMBIENT SCORE <b id="music-value">24%</b></label><input id="music-volume" type="range" min="0" max="100" value="24">
+          <label for="ambience-volume">WORLD AMBIENCE <b id="ambience-value">22%</b></label><input id="ambience-volume" type="range" min="0" max="100" value="22">
+          <label for="sfx-volume">EFFECTS <b id="sfx-value">55%</b></label><input id="sfx-volume" type="range" min="0" max="100" value="55">
+          <label class="check-setting"><input id="subtitles-toggle" type="checkbox" checked> SHOW TRANSMISSION SUBTITLES</label>
+          <label class="check-setting"><input id="hud-toggle" type="checkbox" checked> SHOW EXPEDITION HUD</label>
+          <button class="modal-secondary settings-reset" id="settings-reset">RESET SETTINGS</button>
+          </section>
+        </div>
+      </div>
+    </section>
+    <section class="story-modal" id="story-modal" hidden>
+      <div class="story-panel">
+        <div class="modal-eyebrow" id="story-chapter">REGION COMPLETE / FIELD RECORD</div>
+        <button class="modal-close" id="story-close">×</button>
+        <div class="story-kicker">EXPEDITION TRANSMISSION <span id="story-id">AREA-01</span></div>
+        <h2 id="story-title">THE SIGNAL <em>REMAINS</em></h2>
+        <p id="story-briefing"></p><blockquote id="story-quote"></blockquote>
+        <button class="modal-primary" id="story-continue">CONTINUE <span>↗</span></button>
+      </div>
+    </section>
+    <div class="world-event" id="world-event" hidden><span class="event-pulse"></span><div><small>LIVE PLANETARY EVENT</small><b id="world-event-name">AURORA BLOOM</b><span id="world-event-time">FIELD BONUS ACTIVE</span></div></div>
     <div class="toast-message" id="toast-message" role="status" aria-live="polite"></div>
     <div class="crossfade-loader" id="loading-screen">
       <div class="loader-orbit"><i></i><i></i><i></i></div>
       <div class="loader-title">ASTRO<span>SPACE</span></div>
       <p>INITIALISING PLANETARY SIMULATION</p>
       <div class="loader-bar"><i></i></div>
-      <small>PROLOGUE // THE FIRST SIGNAL</small>
+      <small>CAMPAIGN // THE QUIET MERIDIAN</small>
     </div>
     <div class="webgl-error" id="webgl-error" hidden>
       <b>3D SIMULATION UNAVAILABLE</b>
@@ -135,11 +232,11 @@
         <div class="intro-symbol">✧</div>
         <small>UNIT A.R.I.A. — 07 // BOOT SEQUENCE COMPLETE</small>
         <h2>YOU ARE<br><em>NOT ALONE.</em></h2>
-        <p>Wake the three ancient relays on Elyndra. Their signal is the key to your Aether Drive. The stars are waiting, but you must earn the sky.</p>
+        <p>Explore four regions on every planet. Complete all regional contracts, uncover hidden caches and defeat the local guardian to move onward. The stars are waiting, but you must earn the sky.</p>
         <button id="begin-button" type="button">BEGIN EXPEDITION <span>↗</span></button>
       </div>
     </div>
   </main>
-  <script type="module" src="/play/play.js"></script>
+  <script type="module" src="/play/play.js?v=exosuit-transit-r5"></script>
 </body>
 </html>

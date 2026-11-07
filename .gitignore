@@ -12,3 +12,5 @@ Saved/
 !.env.example
 node_modules/
 .vercel/
+
+supabase/.temp/

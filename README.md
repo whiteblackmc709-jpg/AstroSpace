@@ -2,17 +2,28 @@
 
 **An exploration-first science-fiction action RPG about a living, evolving universe.**
 
-## Current website
+## Current playable experience
 
-The public site now includes an interactive WebGL Flight Deck with six procedural 3D planet looks, orbital camera controls, a deep-scan interaction, a small flight sandbox and cosmic-event previews.
+The public landing site remains the product/visual introduction. The separate /play/ route is the browser RPG prototype.
 
-- Drag to orbit; scroll or use zoom buttons to approach.
-- Select Kharon's Rest, Vespera, Cinderwake, Nox Aeterna, Aureon or Glaciera.
-- Run a deep scan to reveal signal data.
-- Toggle stellar flare, crust fracture or black-hole presentation.
-- Engage Flight: WASD to translate, Q/E vertically, Shift to boost and Space to brake.
+The campaign scaffold contains six original planets, four named regions per planet, five mandatory contracts in each region, and two optional hidden caches per region. A player must clear all five contracts to enter the next region; all four regions must be cleared before the next planet is unlocked. The first world is the onboarding arc and flight authorization unlocks only after its four regions are completed.
 
-This is a browser-based visual prototype. It is not the final Unreal Engine game, not multiplayer, and not a production terrain landing system.
+The five contract types are:
+- Story contact and character transmission.
+- Signal survey with three scan targets.
+- Ancient reliquary/ruin alignment.
+- Four relic fragments to recover.
+- A regional guardian with four armour nodes.
+
+There are also timed planetary events with collectible anomaly shards, a scan pulse, hidden caches, a regional atlas, a story archive, photo mode and local progress saves.
+
+Visual work in this browser milestone now synthesises biome-specific PBR albedo, normal, roughness and height maps at 1K/2K, with a 4K cinematic tier when reported device memory and GPU texture limits allow it. The landing planet viewer uses equirectangular surface maps and PMREM environment lighting; /play uses streamed 3×3 terrain chunks with the same PBR material pipeline, planet-specific lighting/fog, and custom regional landmarks. The maps are original procedural browser assets, not scanned or hand-authored production PBR source art; this is not ray tracing or final Unreal Engine rendering.
+
+The audio layer generates planet-specific ambient synth beds and sound effects using Web Audio after the player starts audio. Settings cover render profile, FOV, look sensitivity, invert, reduced motion, HUD visibility and audio mix.
+
+Account, cross-device cloud save, profiles, friend requests, direct messages and realtime global/planet/region chat are implemented as a Supabase client adapter with an RLS migration. They remain offline until an AstroSpace-specific Supabase project is configured and the two public environment variables are added to Vercel. Local campaign saves work without those services.
+
+This is still a browser prototype. It is not a production MMORPG, authoritative multiplayer server, final Unreal Engine game, or measured target-device graphics build. See the campaign and social setup notes for exact scope and service prerequisites.
 
 ## Core game direction
 
