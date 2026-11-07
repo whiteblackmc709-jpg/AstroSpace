@@ -3,6 +3,67 @@ const fract=v=>v-Math.floor(v);
 const seeded=(i,seed=1)=>fract(Math.sin((i+1)*127.1+(seed+3)*311.7)*43758.5453123);
 const lerp=(a,b,t)=>a+(b-a)*t;
 
+function parseHex(hex){
+ const value=String(hex||"#808080").replace("#","");
+ const full=value.length===3?value.split("").map(c=>c+c).join(""):value;
+ const number=parseInt(full,16)||0x808080;
+ return [(number>>16&255)/255,(number>>8&255)/255,(number&255)/255];
+}
+export function createBiomeDetailMaps(THREE,style="stone",seed=1,baseHex="#4b5c53",accentHex="#a7a28b"){
+ const width=256,height=256,count=width*height,base=parseHex(baseHex),accent=parseHex(accentHex);
+ const albedo=new Uint8Array(count*3),roughness=new Uint8Array(count*2),heightMap=new Uint8Array(count);
+ for(let y=0;y<height;y++){
+  const v=y/height;
+  for(let x=0;x<width;x++){
+   const u=x/width,i=y*width+x,k=i*3,n=seeded(i+21,seed),grain=seeded(i+87,seed+31)-.5;
+   const warp=.045*Math.sin(v*19+Math.sin(u*13+seed)*1.3)+.018*(n-.5);
+   let pattern=0,rough=.78,relief=.5;
+   if(style==="bark"){
+    const groove=Math.pow(Math.abs(Math.sin((u*58+warp*2)*Math.PI)),.32);
+    const knots=Math.exp(-Math.pow((u-.27+Math.sin(v*6+seed)*.018)*32,2)-Math.pow((v-.56)*18,2));
+    pattern=(1-groove)*.72+knots*.58+(n-.5)*.22;rough=.91-groove*.13;relief=.38+pattern*.32;
+   }else if(style==="leaf"){
+    const vein=Math.exp(-Math.abs(u-.5+Math.sin(v*9+seed)*.018)*75);
+    const sideVeins=Math.pow(Math.max(0,Math.cos(v*19+Math.abs(u-.5)*28+seed)),12)*.34;
+    pattern=vein*.8+sideVeins+(n-.5)*.16;rough=.86-vein*.14;relief=.42+pattern*.28;
+   }else if(style==="coral"){
+    const branch=Math.pow(Math.max(0,Math.sin((u*17+v*6+seed*.07)*Math.PI)),4);
+    const pores=Math.pow(n,7)*.5;pattern=branch*.56+pores+(grain*.15);rough=.55+pores*.2;relief=.35+pattern*.42;
+   }else if(style==="basalt"){
+    const stratum=.5+.5*Math.sin(v*61+Math.sin(u*11+seed)*1.4);
+    const fracture=1-Math.min(1,Math.abs(Math.sin(u*29+v*37+seed))/.16);
+    pattern=stratum*.35+fracture*.52+(n-.5)*.18;rough=.88-fracture*.15;relief=.32+pattern*.44;
+   }else if(style==="crystal"){
+    const facet=.5+.5*Math.sin(u*37+v*31+Math.sin(u*13+v*17)*2+seed);
+    const seam=1-Math.min(1,Math.abs(Math.sin(u*8-v*21+seed))/.13);
+    pattern=facet*.43+seam*.5+(n-.5)*.14;rough=.34+facet*.18;relief=.3+pattern*.5;
+   }else{
+    const strata=.5+.5*Math.sin(v*14+Math.sin(u*9+seed)*.9);
+    const pit=Math.pow(n,8)*.4;pattern=strata*.5+pit+(grain*.18);rough=.94-pit*.2;relief=.4+pattern*.3;
+   }
+   const mix=clamp(.25+pattern*.46+grain*.24,.04,.94),shade=clamp(.84+pattern*.25+grain*.18,.55,1.28);
+   albedo[k]=Math.round(clamp((base[0]*(1-mix)+accent[0]*mix)*shade)*255);
+   albedo[k+1]=Math.round(clamp((base[1]*(1-mix)+accent[1]*mix)*shade)*255);
+   albedo[k+2]=Math.round(clamp((base[2]*(1-mix)+accent[2]*mix)*shade)*255);
+   const rv=Math.round(clamp(rough+grain*.12)*255);roughness[i*2]=rv;roughness[i*2+1]=rv;
+   heightMap[i]=Math.round(clamp(relief+grain*.16)*255);
+  }
+ }
+ const configure=(texture,colorSpace,repeat=3)=>{
+  texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(repeat,repeat);
+  texture.magFilter=THREE.LinearFilter;texture.minFilter=THREE.LinearMipmapLinearFilter;
+  texture.generateMipmaps=true;texture.anisotropy=Math.min(8,4);
+  texture.unpackAlignment=1;if(colorSpace)texture.colorSpace=colorSpace;
+  texture.needsUpdate=true;return texture;
+ };
+ const maps={
+  albedo:configure(new THREE.DataTexture(albedo,width,height,THREE.RGBFormat),THREE.SRGBColorSpace,2),
+  roughness:configure(new THREE.DataTexture(roughness,width,height,THREE.RGFormat),THREE.NoColorSpace,2),
+  heightMap:configure(new THREE.DataTexture(heightMap,width,height,THREE.RedFormat),THREE.NoColorSpace,2),
+  dispose(){this.albedo.dispose();this.roughness.dispose();this.heightMap.dispose();}
+ };
+ return maps;
+}
 export function planetaryDetailBudget(quality="balanced"){
  const density=({performance:.48,balanced:1,cinematic:1.38,"4k":1.72,"8k":1.92}[quality]||1);
  return {
@@ -84,6 +145,22 @@ export function createPlanetaryDetail(THREE,world,{
 }={}){
  const budget=planetaryDetailBudget(quality),seed=Number(world.seed)||17,kind=Number(world.terrain??world.kind??0);
  const root=new THREE.Group();root.position.set(originX,0,originZ);root.name="ASTROSPACE_BIOME_DETAIL";
+ const textureBundles=[];
+ const hexOf=color=>"#"+color.getHexString();
+ const makeMaps=(style,base,accent)=>{const maps=createBiomeDetailMaps(THREE,style,seed,base,accent);textureBundles.push(maps);return maps;};
+ const rockMaps=makeMaps("stone",hexOf(palette[0]),hexOf(palette[2]));
+ const specialMaps=kind===0?makeMaps("bark","#463729","#aa8054"):
+  kind===1?makeMaps("coral","#176d6d","#b1f1d4"):
+  kind===2?makeMaps("basalt","#25272b","#b86743"):
+  kind===3?makeMaps("crystal","#39345f","#c4b8ed"):
+  kind===4?makeMaps("stone","#594e48","#c6ab8c"):
+  makeMaps("crystal","#6d9fbb","#effcff");
+ const foliageMaps=kind===0?makeMaps("leaf","#1b593b","#a3d278"):null;
+ const applyMaps=(material,maps,bumpScale=.08)=>{
+  if(!maps)return material;
+  material.map=maps.albedo;material.roughnessMap=maps.roughness;
+  material.bumpMap=maps.heightMap;material.bumpScale=bumpScale;material.needsUpdate=true;return material;
+ };
  const ground=new THREE.Group(),foliage=new THREE.Group(),floaters=new THREE.Group();
  root.add(ground,foliage,floaters);
  const dummy=new THREE.Object3D();
@@ -92,9 +169,9 @@ export function createPlanetaryDetail(THREE,world,{
 
  // High-frequency geology: one instanced mesh for large boulders and a second for field rubble.
  const boulderGeo=roughGeometry(THREE,new THREE.IcosahedronGeometry(1,2),{strength:.16,frequency:9,seed:seed+2});
- const boulders=instance(THREE,boulderGeo,new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.91,metalness:.035,vertexColors:true}),budget.boulders,ground);
+ const boulders=instance(THREE,boulderGeo,applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.91,metalness:.035,vertexColors:true}),rockMaps,.12),budget.boulders,ground);
  const pebbleGeo=roughGeometry(THREE,new THREE.DodecahedronGeometry(1,1),{strength:.13,frequency:13,seed:seed+5});
- const pebbles=instance(THREE,pebbleGeo,new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.95,vertexColors:true}),budget.pebbles,ground);
+ const pebbles=instance(THREE,pebbleGeo,applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.95,vertexColors:true}),rockMaps,.095),budget.pebbles,ground);
  for(let i=0;i<budget.boulders;i++){
   const a=seeded(i+4,seed)*Math.PI*2,r=58+seeded(i+17,seed)*850,x=Math.cos(a)*r,z=Math.sin(a)*r;
   const y=terrainHeight(x+originX,z+originZ,world),sx=4+seeded(i+21,seed)*16,sy=2.5+seeded(i+29,seed)*10,sz=4+seeded(i+31,seed)*18;
@@ -112,13 +189,13 @@ export function createPlanetaryDetail(THREE,world,{
  if(kind===0){
   // Elyndra: layered broadleaf canopy, visible branch structure, ferns, grass and small bioluminescent flowers.
   const trunks=instance(THREE,roughGeometry(THREE,new THREE.CylinderGeometry(.38,.82,1,12,6),{strength:.065,frequency:15,seed:seed+11}),
-   new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.94,vertexColors:true}),budget.canopyTrees,foliage);
+   applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.94,vertexColors:true}),specialMaps,.16),budget.canopyTrees,foliage);
   const branches=instance(THREE,new THREE.CylinderGeometry(.045,.2,1,8,3),
    new THREE.MeshStandardMaterial({color:"#604a35",roughness:.95}),budget.canopyTrees*4,foliage);
   const leaves=instance(THREE,leafGeometry(THREE),
-   new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.88,side:THREE.DoubleSide,vertexColors:true}),budget.canopyLeaves,foliage);
+   applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.88,side:THREE.DoubleSide,vertexColors:true}),foliageMaps,.045),budget.canopyLeaves,foliage);
   const crowns=instance(THREE,roughGeometry(THREE,new THREE.IcosahedronGeometry(1,2),{strength:.14,frequency:8,seed:seed+15}),
-   new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.93,vertexColors:true}),budget.canopyTrees*2,foliage);
+   applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.93,vertexColors:true}),foliageMaps,.06),budget.canopyTrees*2,foliage);
   const barkPalette=["#5d4834","#71563a","#493d32","#826545"].map(c=>new THREE.Color(c));
   const leafPalette=["#174c39","#1f6747","#2d8051","#438d59","#6b9d5c","#93a96a"].map(c=>new THREE.Color(c));
   let branchIndex=0,leafIndex=0,crownIndex=0;
@@ -185,7 +262,7 @@ export function createPlanetaryDetail(THREE,world,{
  }else if(kind===1){
   // Nerith: branching reef fans, mineral shelves and suspended bioluminescent polyps.
   const branchGeo=new THREE.CylinderGeometry(.08,.34,1,8,3),branches=instance(THREE,branchGeo,
-   new THREE.MeshPhysicalMaterial({color:"#ffffff",roughness:.36,metalness:.05,clearcoat:.5,vertexColors:true}),budget.reefBranches,ground);
+   applyMaps(new THREE.MeshPhysicalMaterial({color:"#ffffff",roughness:.36,metalness:.05,clearcoat:.5,vertexColors:true}),specialMaps,.075),budget.reefBranches,ground);
   const reefTints=["#167c7d","#20a99c","#53c6ac","#8ed8c6","#e0d4ac"].map(c=>new THREE.Color(c));
   let bi=0;
   for(let i=0;i<budget.reefColonies;i++){
@@ -215,7 +292,7 @@ export function createPlanetaryDetail(THREE,world,{
  }else if(kind===2){
   // Kaldrax: fractured basalt columns with lit magma seams and vent rims.
   const basalt=instance(THREE,roughGeometry(THREE,new THREE.CylinderGeometry(.62,.94,1,7,5),{strength:.13,frequency:17,seed:seed+33}),
-   new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.93,metalness:.08,vertexColors:true}),budget.basaltColumns,ground);
+   applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.93,metalness:.08,vertexColors:true}),specialMaps,.16),budget.basaltColumns,ground);
   for(let i=0;i<budget.basaltColumns;i++){
    const a=seeded(i+1500,seed)*Math.PI*2,r=70+seeded(i+1520,seed)*820,x=Math.cos(a)*r,z=Math.sin(a)*r,y=terrainHeight(x+originX,z+originZ,world),h=8+seeded(i+1540,seed)*38,sc=2.6+seeded(i+1560,seed)*6;
    place(THREE,basalt,i,dummy,x,y+h*.5,z,sc,h,sc*(.65+seeded(i+1580,seed)*.45),(seeded(i+1600,seed)-.5)*.18,seeded(i+1620,seed)*6.28,(seeded(i+1640,seed)-.5)*.12,palette[0].clone().lerp(palette[1],.2+seeded(i+1660,seed)*.35));
@@ -236,7 +313,7 @@ export function createPlanetaryDetail(THREE,world,{
  }else if(kind===3){
   // Vanthris: suspended broken crust, exposed mineral shards and orbiting fragments.
   const shard=instance(THREE,roughGeometry(THREE,new THREE.OctahedronGeometry(1.2,1),{strength:.21,frequency:12,seed:seed+41}),
-   new THREE.MeshPhysicalMaterial({color:"#ffffff",roughness:.32,metalness:.24,clearcoat:.8,emissive:"#4b2e9b",emissiveIntensity:.12,vertexColors:true}),budget.gravityShards,floaters);
+   applyMaps(new THREE.MeshPhysicalMaterial({color:"#ffffff",roughness:.32,metalness:.24,clearcoat:.8,emissive:"#4b2e9b",emissiveIntensity:.12,vertexColors:true}),specialMaps,.11),budget.gravityShards,floaters);
   const shimmer=["#7560b5","#9b8ad3","#c7b6eb","#6e7da8"].map(c=>new THREE.Color(c));
   for(let i=0;i<budget.gravityShards;i++){
    const a=seeded(i+1900,seed)*Math.PI*2,r=60+seeded(i+1920,seed)*840,x=Math.cos(a)*r,z=Math.sin(a)*r,y=terrainHeight(x+originX,z+originZ,world)+10+seeded(i+1940,seed)*52,sc=3+seeded(i+1960,seed)*13;
@@ -252,7 +329,7 @@ export function createPlanetaryDetail(THREE,world,{
  }else if(kind===4){
   // Orovane: floating storm-rocks with layered cloud banks and suspended mineral dust.
   const islands=instance(THREE,roughGeometry(THREE,new THREE.DodecahedronGeometry(1,2),{strength:.2,frequency:10,seed:seed+51}),
-   new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.95,vertexColors:true}),budget.skyIslands,floaters);
+   applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.95,vertexColors:true}),rockMaps,.13),budget.skyIslands,floaters);
   for(let i=0;i<budget.skyIslands;i++){
    const a=seeded(i+2120,seed)*Math.PI*2,r=100+seeded(i+2140,seed)*820,x=Math.cos(a)*r,z=Math.sin(a)*r,y=28+seeded(i+2160,seed)*118,sc=7+seeded(i+2180,seed)*24;
    place(THREE,islands,i,dummy,x,y,z,sc*1.35,sc*.42,sc,seeded(i+2200,seed)*.2,seeded(i+2220,seed)*6.28,seeded(i+2240,seed)*.2,palette[2].clone().lerp(palette[3],seeded(i+2260,seed)*.5));
@@ -267,7 +344,7 @@ export function createPlanetaryDetail(THREE,world,{
   finish(clouds);
  }else{
   // Iskara: faceted ice towers, sapphire seams and scattered cryogenic shards.
-  const iceMat=new THREE.MeshPhysicalMaterial({color:"#ffffff",roughness:.18,metalness:.1,clearcoat:1,clearcoatRoughness:.12,iridescence:.28,iridescenceIOR:1.32,vertexColors:true});
+  const iceMat=applyMaps(new THREE.MeshPhysicalMaterial({color:"#ffffff",roughness:.18,metalness:.1,clearcoat:1,clearcoatRoughness:.12,iridescence:.28,iridescenceIOR:1.32,vertexColors:true}),specialMaps,.085);
   const spires=instance(THREE,roughGeometry(THREE,new THREE.ConeGeometry(1,1,6,5),{strength:.075,frequency:8,seed:seed+61}),iceMat,budget.iceSpire,ground);
   const tints=["#76d6f2","#bcecff","#edfaff","#5a9fd0"].map(c=>new THREE.Color(c));
   for(let i=0;i<budget.iceSpire;i++){
@@ -283,11 +360,14 @@ export function createPlanetaryDetail(THREE,world,{
   finish(fragments);
  }
 
+ root.userData.detailTextures=textureBundles;
+ root.userData.disposeTextures=()=>{for(const maps of textureBundles)maps.dispose();textureBundles.length=0;};
  root.userData.detailBudget=budget;
  root.userData.quality=quality;
  root.userData.setQuality=nextQuality=>{
   if(nextQuality===root.userData.quality)return root;
   const parent=root.parent;
+  root.userData.disposeTextures?.();
   const replacement=createPlanetaryDetail(THREE,world,{quality:nextQuality,originX,originZ,terrainHeight});
   if(parent){parent.add(replacement);parent.remove(root);}
   const geometries=new Set(),materials=new Set();

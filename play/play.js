@@ -907,7 +907,7 @@ function regionState(task){return save.taskProgress[task.id]||(save.taskProgress
 function regionComplete(region=currentRegion){return region.tasks.every(t=>regionState(t).complete);}
 function regionPercent(region=currentRegion){return Math.round(region.tasks.filter(t=>regionState(t).complete).length/region.tasks.length*100);}
 function disposeWorld(){
- animatedObjects=[];biomeDetail=null;worldShaders=[];
+ animatedObjects=[];biomeDetail?.userData?.disposeTextures?.();biomeDetail=null;worldShaders=[];
  if(!worldRoot)return;
  terrain?.userData?.disposePbr?.();scene.remove(worldRoot);
  const geometries=new Set(),materials=new Set();

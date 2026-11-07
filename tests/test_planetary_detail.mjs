@@ -1,7 +1,22 @@
 import assert from "node:assert/strict";
-import { planetaryDetailBudget } from "../assets/planetary-detail.js";
+import { createBiomeDetailMaps, planetaryDetailBudget } from "../assets/planetary-detail.js";
 import { readFileSync } from "node:fs";
 
+class DataTexture {
+  constructor(data,width,height,format){this.image={data,width,height};this.format=format;this.repeat={set:(x,y)=>{this.repeatX=x;this.repeatY=y;}};this.disposed=false;}
+  dispose(){this.disposed=true;}
+}
+const THREE={DataTexture,RGBFormat:"rgb",RGFormat:"rg",RedFormat:"red",SRGBColorSpace:"srgb",NoColorSpace:"",RepeatWrapping:"repeat",LinearFilter:"linear",LinearMipmapLinearFilter:"mipmap"};
+const maps=createBiomeDetailMaps(THREE,"bark",19,"#49382a","#c69b61");
+assert.equal(maps.albedo.image.data.length,256*256*3);
+assert.equal(maps.roughness.image.data.length,256*256*2);
+assert.equal(maps.heightMap.image.data.length,256*256);
+assert.equal(maps.albedo.format,"rgb");
+assert.equal(maps.roughness.format,"rg");
+assert.equal(maps.heightMap.format,"red");
+assert.equal(maps.albedo.colorSpace,"srgb");
+maps.dispose();
+assert.ok(maps.albedo.disposed&&maps.roughness.disposed&&maps.heightMap.disposed,"Biome texture sets must dispose cleanly.");
 const expected = ["performance","balanced","cinematic","4k","8k"];
 const budgets = expected.map(planetaryDetailBudget);
 for (let i=0;i<budgets.length;i++) {
