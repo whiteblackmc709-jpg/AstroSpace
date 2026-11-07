@@ -191,7 +191,7 @@ export function createPlanetaryDetail(THREE,world,{
   const trunks=instance(THREE,roughGeometry(THREE,new THREE.CylinderGeometry(.38,.82,1,12,6),{strength:.065,frequency:15,seed:seed+11}),
    applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.94,vertexColors:true}),specialMaps,.16),budget.canopyTrees,foliage);
   const branches=instance(THREE,new THREE.CylinderGeometry(.045,.2,1,8,3),
-   new THREE.MeshStandardMaterial({color:"#604a35",roughness:.95}),budget.canopyTrees*4,foliage);
+   applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.95}),specialMaps,.12),budget.canopyTrees*4,foliage);
   const leaves=instance(THREE,leafGeometry(THREE),
    applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.88,side:THREE.DoubleSide,vertexColors:true}),foliageMaps,.045),budget.canopyLeaves,foliage);
   const crowns=instance(THREE,roughGeometry(THREE,new THREE.IcosahedronGeometry(1,2),{strength:.14,frequency:8,seed:seed+15}),
@@ -283,7 +283,7 @@ export function createPlanetaryDetail(THREE,world,{
   }
   finish(pearl);
   const shelf=instance(THREE,roughGeometry(THREE,new THREE.ConeGeometry(1,1,7,3),{strength:.2,frequency:8,seed:seed+24}),
-   new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.57,metalness:.08,vertexColors:true}),Math.round(budget.reefColonies*.7),ground);
+   applyMaps(new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.57,metalness:.08,vertexColors:true}),rockMaps,.12),Math.round(budget.reefColonies*.7),ground);
   for(let i=0;i<shelf.count;i++){
    const a=seeded(i+1410,seed)*Math.PI*2,r=100+seeded(i+1430,seed)*800,x=Math.cos(a)*r,z=Math.sin(a)*r,y=terrainHeight(x+originX,z+originZ,world),sc=3+seeded(i+1450,seed)*12;
    place(THREE,shelf,i,dummy,x,y+sc*.35,z,sc,sc*(1.1+seeded(i+1470,seed)),sc,0,seeded(i+1490,seed)*6.28,0,reefTints[i%reefTints.length]);
