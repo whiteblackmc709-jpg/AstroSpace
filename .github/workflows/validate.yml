@@ -2,7 +2,7 @@ name: Validate AstroSpace foundation
 
 on:
   push:
-    branches: [main, "foundation/**", "visual/**", "forge/**", "game/**"]
+    branches: [main, "foundation/**", "visual/**", "forge/**", "game/**", "fix/**"]
   pull_request:
     branches: [main]
 
