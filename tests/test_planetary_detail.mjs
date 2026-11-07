@@ -32,7 +32,7 @@ for (let i=0;i<budgets.length;i++) {
   assert.equal(budgets[i].reefBranches, budgets[i].reefColonies * 5, "Reef instance count must match branch placement count.");
   if (i) assert.ok(budgets[i].density >= budgets[i-1].density, "Detail density must scale monotonically.");
 }
-const source = readFileSync(new URL("../assets/planetary-detail.js", import.meta.url), "utf8");
+
 assert.match(source, /setFromUnitVectors\(new THREE\.Vector3\(0,1,0\),new THREE\.Vector3\(/,
   "Branch and coral segments must align from the up axis using Vector3 directions.");
 assert.match(source, /userData\.setQuality=/, "The active biome detail pass must rebuild on quality changes.");
