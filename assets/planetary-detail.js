@@ -64,6 +64,14 @@ export function createBiomeDetailMaps(THREE,style="stone",seed=1,baseHex="#4b5c5
  };
  return maps;
 }
+export function createPlanetaryDetailPalette(THREE,world={}){
+ const source=Array.isArray(world.palette)&&world.palette.length?world.palette:
+  Array.isArray(world.colors)&&world.colors.length?world.colors:
+  ["#142a31","#416a64","#80b29a","#d5d5b5"];
+ const palette=source.map(color=>new THREE.Color(color));
+ while(palette.length<4)palette.push(palette[palette.length-1]);
+ return palette;
+}
 export function planetaryDetailBudget(quality="balanced"){
  const density=({performance:.48,balanced:1,cinematic:1.38,"4k":1.72,"8k":1.92}[quality]||1);
  return {
@@ -143,6 +151,7 @@ function finish(mesh){
 export function createPlanetaryDetail(THREE,world,{
  quality="balanced",originX=0,originZ=0,terrainHeight=()=>0
 }={}){
+ const palette=createPlanetaryDetailPalette(THREE,world);
  const budget=planetaryDetailBudget(quality),seed=Number(world.seed)||17,kind=Number(world.terrain??world.kind??0);
  const root=new THREE.Group();root.position.set(originX,0,originZ);root.name="ASTROSPACE_BIOME_DETAIL";
  const textureBundles=[];
@@ -164,8 +173,6 @@ export function createPlanetaryDetail(THREE,world,{
  const ground=new THREE.Group(),foliage=new THREE.Group(),floaters=new THREE.Group();
  root.add(ground,foliage,floaters);
  const dummy=new THREE.Object3D();
- const palette=(world.palette||world.colors||["#142a31","#416a64","#80b29a","#d5d5b5"]).map(c=>new THREE.Color(c));
- while(palette.length<4)palette.push(palette[palette.length-1]);
 
  // High-frequency geology: one instanced mesh for large boulders and a second for field rubble.
  const boulderGeo=roughGeometry(THREE,new THREE.IcosahedronGeometry(1,2),{strength:.16,frequency:9,seed:seed+2});

@@ -2,7 +2,7 @@ name: Validate AstroSpace foundation
 
 on:
   push:
-    branches: [main, "foundation/**", "visual/**", "forge/**", "game/**"]
+    branches: [main, "foundation/**", "visual/**", "forge/**", "game/**", "fix/**"]
   pull_request:
     branches: [main]
 
@@ -50,7 +50,9 @@ jobs:
           node tests/test_pbr_surface.mjs
           node tests/test_webgl_boot.mjs
           node tests/test_player_systems.mjs
+          node tests/test_play_toolbar.mjs
           node tests/test_planetary_detail.mjs
+          node tests/test_planetary_detail_palette.mjs
       - name: Set up CMake
         run: cmake -S . -B build
       - name: Build

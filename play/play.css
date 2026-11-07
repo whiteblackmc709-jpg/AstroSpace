@@ -279,3 +279,27 @@
 /* World atmosphere and art-scene focus: the game canvas owns the background image. */
 .world-grade{background:linear-gradient(180deg,rgba(2,9,17,.52),transparent 24%,transparent 72%,rgba(2,8,15,.5)),linear-gradient(90deg,rgba(2,9,17,.28),transparent 21%,transparent 79%,rgba(2,9,17,.2))}
 .film-grain{opacity:.032;background-size:3px 3px}
+
+/* Compact responsive game toolbar: no overlapping center caption or clipped action buttons. */
+.game-topbar{height:auto;min-height:72px;padding:10px clamp(16px,3vw,48px);display:flex;flex-wrap:wrap;align-content:center;gap:8px 14px}
+.game-brand{flex:0 0 auto;min-width:220px}
+.top-center{display:none}
+.top-actions{display:flex;flex:1 1 760px;min-width:0;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:5px}
+.top-button,.exit-button{flex:0 0 auto;height:32px;min-width:0;padding:0 clamp(7px,.58vw,10px);gap:5px;font-size:6.5px;letter-spacing:.07em;white-space:nowrap}
+@media(max-width:1120px){
+ .game-topbar{padding:9px 16px;gap:8px 12px}
+ .game-brand{min-width:190px}
+ .top-actions{flex-basis:630px;justify-content:flex-end}
+}
+@media(max-width:760px){
+ .game-topbar{padding:8px 12px;gap:7px}
+ .game-brand{width:100%;min-width:0;justify-content:center}
+ .game-brand small{display:none}
+ .top-actions{flex:1 1 100%;justify-content:center;gap:4px}
+ .top-button,.exit-button{height:30px;padding:0 6px;font-size:6px;letter-spacing:.04em}
+ .left-hud{top:clamp(110px,17vh,145px);left:12px;width:min(292px,calc(100vw - 24px))}
+}
+@media(max-width:480px){
+ .top-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+ .top-button,.exit-button{width:100%;min-width:0;justify-content:center;overflow:hidden;text-overflow:ellipsis}
+}
