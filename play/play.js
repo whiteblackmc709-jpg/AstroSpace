@@ -20,8 +20,24 @@ const keys=new Set(),touchKeys=new Set();
 
 (async function boot(){
  const loader=$("loading-screen");
- try{THREE=await import(THREE_URL);initGame();loader.classList.add("loaded");setTimeout(()=>loader.remove(),850);if(!save.introSeen)$("intro-overlay").hidden=false;}
- catch(error){console.error("AstroSpace prologue boot failed",error);$("webgl-error").hidden=false;loader.classList.add("loaded");}
+ let bootStage="loading Three.js";
+ try{
+  THREE=await import(THREE_URL);
+  bootStage="initialising the planetary scene";
+  initGame();
+  loader.classList.add("loaded");
+  setTimeout(()=>loader.remove(),850);
+  if(!save.introSeen)$("intro-overlay").hidden=false;
+ }catch(error){
+  console.error("AstroSpace prologue boot failed during "+bootStage,error);
+  const panel=$("webgl-error"),detail=panel?.querySelector("p");
+  if(detail){
+   const message=String(error?.message||error||"Unknown startup error").slice(0,240);
+   detail.textContent=bootStage+": "+message+" — reload the prologue. If this mentions WebGL/context, check browser graphics acceleration.";
+  }
+  if(panel)panel.hidden=false;
+  loader?.classList.add("loaded");
+ }
 })();
 
 function initGame(){
@@ -29,7 +45,8 @@ function initGame(){
  camera=new THREE.PerspectiveCamera(settings.fov,1,.1,8500);
  renderer=new THREE.WebGLRenderer({canvas:$("game-canvas"),antialias:true,alpha:false,powerPreference:"high-performance"});
  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
- environmentTarget=createCinematicEnvironment(THREE,renderer);if(environmentTarget)scene.environment=environmentTarget.texture;
+ try{environmentTarget=createCinematicEnvironment(THREE,renderer);if(environmentTarget)scene.environment=environmentTarget.texture;}
+ catch(error){environmentTarget=null;console.warn("AstroSpace cinematic environment skipped; using direct scene lighting",error);}
  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));renderer.shadowMap.enabled=settings.quality!=="performance";renderer.shadowMap.type=THREE.PCFSoftShadowMap;clock=new THREE.Clock();
  scene.add(new THREE.HemisphereLight(0xc9e0dc,0x111a1c,.92));
  sunLight=new THREE.DirectionalLight(currentWorld.light,3.3);sunLight.position.set(-180,260,-130);sunLight.castShadow=true;sunLight.shadow.mapSize.set(settings.quality==="cinematic"?4096:settings.quality==="performance"?1024:2048,settings.quality==="cinematic"?4096:settings.quality==="performance"?1024:2048);sunLight.shadow.camera.left=-320;sunLight.shadow.camera.right=320;sunLight.shadow.camera.top=320;sunLight.shadow.camera.bottom=-320;sunLight.shadow.bias=-.00015;scene.add(sunLight);
@@ -81,6 +98,7 @@ function createSky(){
  const count=4200,pos=new Float32Array(count*3),colors=new Float32Array(count*3);
  for(let i=0;i<count;i++){const y=Math.random()*2-1,a=Math.random()*Math.PI*2,r=Math.sqrt(1-y*y)*330;pos[i*3]=Math.cos(a)*r;pos[i*3+1]=y*330;pos[i*3+2]=Math.sin(a)*r;const c=new THREE.Color().setHSL(.48+Math.random()*.16,.28,.63+Math.random()*.32);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}
  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setAttribute("color",new THREE.BufferAttribute(colors,3));
+ const stars=new THREE.Points(g,new THREE.PointsMaterial({size:.72,sizeAttenuation:true,vertexColors:true,transparent:true,opacity:.88,depthWrite:false}));
  skyShell=new THREE.Group();
  const dome=new THREE.Mesh(new THREE.SphereGeometry(690,48,32),new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,depthTest:false,vertexShader:'varying float vHeight;void main(){vHeight=normalize(position).y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:'varying float vHeight;void main(){float h=smoothstep(-.18,.88,vHeight);vec3 horizon=vec3(.075,.22,.25);vec3 zenith=vec3(.008,.026,.055);vec3 col=mix(horizon,zenith,h);float haze=exp(-pow((vHeight-.02)*8.0,2.0));col+=vec3(.045,.13,.15)*haze;gl_FragColor=vec4(col,1.0);}' }));dome.renderOrder=-1000;dome.frustumCulled=false;skyShell.add(dome,stars);scene.add(skyShell);
  const sunCanvas=document.createElement("canvas");sunCanvas.width=128;sunCanvas.height=128;const sunCtx=sunCanvas.getContext("2d"),sunGrad=sunCtx.createRadialGradient(64,64,2,64,64,63);sunGrad.addColorStop(0,"rgba(230,255,241,.94)");sunGrad.addColorStop(.12,"rgba(132,245,222,.48)");sunGrad.addColorStop(.42,"rgba(92,199,219,.13)");sunGrad.addColorStop(1,"rgba(40,145,190,0)");sunCtx.fillStyle=sunGrad;sunCtx.fillRect(0,0,128,128);const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(sunCanvas),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));sunSprite.position.set(-165,132,-310);sunSprite.scale.set(185,185,1);skyShell.add(sunSprite);
