@@ -37,7 +37,7 @@ function packColor(out,index,color){
 export function chooseSurfaceSize(renderer,quality="balanced",aspect="tile"){
   const max=Math.max(1024,renderer?.capabilities?.maxTextureSize||4096);
   const memory=Number(typeof navigator!=="undefined"?navigator.deviceMemory||4:4);
-  const supports4k=max>=4096&&memory>=4;
+  const supports4k=max>=4096&&memory>=8;
   const supports8k=max>=8192&&memory>=16;
   let width=2048;
   if(quality==="performance")width=1024;
