@@ -235,6 +235,7 @@ function applyGraphicsSettings(prefs={}){
  }
  if(camera){camera.fov=Number(prefs.fov)||settings.fov||58;camera.updateProjectionMatrix();}
  terrain?.userData?.setGeometryQuality?.(quality);void terrain?.userData?.refreshPbr?.(quality);
+ if(biomeDetail?.userData?.setQuality)biomeDetail=biomeDetail.userData.setQuality(quality);
 }
 function updatePerformanceGovernor(dt){
  performanceElapsed+=dt;performanceFrames++;
@@ -342,11 +343,11 @@ function fbm2(x,z,seed){let v=0,amp=.52,norm=0;for(let i=0;i<5;i++){v+=noise2(x,
 function terrainHeight(x,z,w){
  const continental=fbm2(x*.00155,z*.00155,w.seed+3);
  const rolling=fbm2(x*.0058+11,z*.0058-7,w.seed+19);
- const fine=fbm2(x*.018+31,z*.018-17,w.seed+47);
- const micro=fbm2(x*.052-9,z*.052+23,w.seed+83);
+ const fine=noise2(x*.018+31,z*.018-17,w.seed+47);
+ const micro=noise2(x*.052-9,z*.052+23,w.seed+83);
  const ridge=1-Math.abs(rolling*2-1);
  const detail=fine-.5,grain=micro-.5;
- const erosion=fbm2(x*.011+71,z*.011-53,w.seed+101);
+ const erosion=noise2(x*.011+71,z*.011-53,w.seed+101);
  const incised=(1-smooth(.025,.19,Math.abs(erosion-.51)))*2.2;
  let h=(continental-.5)*52+(rolling-.5)*25+(ridge-.52)*10+detail*3+grain*.8-incised*.45;
  if(w.terrain===0){
@@ -374,7 +375,7 @@ function terrainHeight(x,z,w){
 }
 function deterministic(i,seed){const n=Math.sin(i*127.1+seed*311.7)*43758.5453;return n-Math.floor(n);}
 function terrainColorVariation(w,x,z,height,normalY){
- const kind=Number(w.terrain)||0,macro=fbm2(x*.009+7,z*.009-11,w.seed+133),micro=fbm2(x*.061-19,z*.061+29,w.seed+151);
+ const kind=Number(w.terrain)||0,macro=noise2(x*.009+7,z*.009-11,w.seed+133),micro=noise2(x*.061-19,z*.061+29,w.seed+151);
  const slope=1-clamp(normalY,0,1),grain=(macro-.5)*.18+(micro-.5)*.075;
  let tint=[1+grain,1+grain,1+grain];
  if(kind===0){
@@ -431,7 +432,7 @@ function updateTerrainChunk(mesh,w,cx,cz){
 function createTerrain(w){
  const group=new THREE.Group(),size=900,chunks=[];
  let currentMaps=null,currentMaterial=new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.94,metalness:.012,vertexColors:true}),generation=0,currentQuality=null,pendingQuality=null,pendingPromise=null;
- const segmentsFor=quality=>({performance:144,balanced:256,cinematic:320,"4k":384,"8k":448}[quality]||256);
+ const segmentsFor=quality=>({performance:128,balanced:224,cinematic:320,"4k":384,"8k":448}[quality]||224);
  let currentSegments=segmentsFor(settings.quality);
  for(let z=-1;z<=1;z++)for(let x=-1;x<=1;x++){const mesh=createTerrainChunk(w,currentMaterial,x*size,z*size,size,currentSegments);group.add(mesh);chunks.push(mesh);}
  group.userData.setGeometryQuality=quality=>{

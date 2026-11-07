@@ -11,6 +11,9 @@ for (let i=0;i<budgets.length;i++) {
   if (i) assert.ok(budgets[i].density >= budgets[i-1].density, "Detail density must scale monotonically.");
 }
 const source = readFileSync(new URL("../assets/planetary-detail.js", import.meta.url), "utf8");
+assert.match(source, /setFromUnitVectors\(new THREE\.Vector3\(0,1,0\),new THREE\.Vector3\(/,
+  "Branch and coral segments must align from the up axis using Vector3 directions.");
+assert.match(source, /userData\.setQuality=/, "The active biome detail pass must rebuild on quality changes.");
 for (const feature of ["canopyTrees","reefColonies","basaltColumns","gravityShards","skyIslands","iceSpire"]) {
   assert.ok(source.includes(feature), "Missing biome-specific system: " + feature);
 }

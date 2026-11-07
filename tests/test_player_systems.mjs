@@ -20,6 +20,7 @@ assert.match(html, /id="adaptive-quality"/, "Settings must expose adaptive frame
 assert.match(game, /function updatePerformanceGovernor\(/, "The renderer must adapt to measured frame time.");
 assert.match(game, /for\(const o of animatedObjects\)/, "Per-frame world traversal must be removed.");
 assert.match(game, /createPlanetaryDetail\(THREE,next/, "Every planet must receive its biome-specific detail layer.");
+assert.match(game, /biomeDetail=biomeDetail\.userData\.setQuality\(quality\)/, "Biome detail density must follow the active quality profile.");
 assert.match(game, /updateTerrainVertexColors\(/, "Terrain chunks must carry slope and biome-aware surface variation.");
 assert.match(game, /uHorizon.*uZenith.*uAccent/s, "The sky shader must inherit each planet's atmospheric palette.");
 assert.match(game, /worldShaders/, "Layered aurora ribbons must animate without scene-wide traversal.");

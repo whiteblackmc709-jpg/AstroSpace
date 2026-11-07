@@ -59,7 +59,7 @@ function bladeGeometry(THREE){
 function orientCylinder(dummy,x,y,z,dx,dy,dz,length,thickness,yaw=0){
  const len=Math.hypot(dx,dy,dz)||1;
  dummy.position.set(x+dx*.5,y+dy*.5,z+dz*.5);
- dummy.quaternion.setFromUnitVectors(new (dummy.quaternion.constructor)().set(0,1,0),new (dummy.position.constructor)(dx/len,dy/len,dz/len));
+ dummy.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx/len,dy/len,dz/len));
  dummy.rotateY(yaw);
  dummy.scale.set(thickness,length,thickness);dummy.updateMatrix();
 }
@@ -284,6 +284,22 @@ export function createPlanetaryDetail(THREE,world,{
  }
 
  root.userData.detailBudget=budget;
+ root.userData.quality=quality;
+ root.userData.setQuality=nextQuality=>{
+  if(nextQuality===root.userData.quality)return root;
+  const parent=root.parent;
+  const replacement=createPlanetaryDetail(THREE,world,{quality:nextQuality,originX,originZ,terrainHeight});
+  if(parent){parent.add(replacement);parent.remove(root);}
+  const geometries=new Set(),materials=new Set();
+  root.traverse(object=>{
+   if(object.geometry&&!geometries.has(object.geometry)){geometries.add(object.geometry);object.geometry.dispose();}
+   if(object.material){
+    const list=Array.isArray(object.material)?object.material:[object.material];
+    for(const material of list){if(material&&!materials.has(material)){materials.add(material);material.dispose();}}
+   }
+  });
+  root.clear();return replacement;
+ };
  root.userData.update=(time,dt)=>{
   foliage.rotation.z=kind===0?Math.sin(time*.28)*.003:0;
   floaters.rotation.y+=dt*(kind===3?.018:kind===4?.008:.003);
