@@ -17,9 +17,9 @@ assert.match(source, /try\{environmentTarget=createCinematicEnvironment\(THREE,r
   "optional PMREM environment failure must not abort 3D startup");
 assert.match(source, /initialising the planetary scene/,
   "boot should record the stage for useful startup diagnostics");
-assert.match(source, /detail\.textContent=bootStage/,
+assert.match(source, /startCompatibilityScene\(error,bootStage\)/,
   "the error panel must show the actual startup failure instead of always blaming WebGL");
-assert.match(html, /play\.js\?v=exosuit-transit-r6/,
+assert.match(html, /play\.js\?v=player-systems-r10/,
   "the repaired game module must use a new cache-busting version");
 
 console.log("WebGL boot contract: PASS — star field declared before use, optional PMREM fallback, useful diagnostics and cache bust.");

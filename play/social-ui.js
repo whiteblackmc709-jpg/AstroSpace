@@ -80,10 +80,14 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
     if (session) {
       setStatus("CONNECTED // " + (session.user.user_metadata?.display_name || session.user.email || "PILOT"));
       $("account-signout").hidden = false;
+      $("account-actions").hidden = true;
+      $("account-links").hidden = true;
     } else {
       setStatus(authConfigured ? "ACCOUNT NETWORK READY // SIGN IN OR CREATE A PILOT" :
         "ACCOUNT SERVICE NOT CONFIGURED // LOCAL SAVE ONLY", !authConfigured);
       $("account-signout").hidden = true;
+      $("account-actions").hidden = false;
+      $("account-links").hidden = false;
     }
   }
 

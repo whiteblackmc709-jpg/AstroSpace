@@ -14,12 +14,8 @@ Object.defineProperty(globalThis, "navigator", {
 globalThis.requestAnimationFrame = (callback) => setImmediate(callback);
 
 try {
-  const renderer = {
-    capabilities: {
-      maxTextureSize: 4096,
-      getMaxAnisotropy: () => 8
-    }
-  };
+  let maxTextureSize = 4096;
+  const renderer = { capabilities: { get maxTextureSize() { return maxTextureSize; }, getMaxAnisotropy: () => 8 } };
   assert.deepEqual(chooseSurfaceSize(renderer, "performance", "tile"), {
     width: 1024, height: 1024
   });
@@ -36,9 +32,11 @@ try {
   Object.defineProperty(globalThis, "navigator", {
     configurable: true, value: { deviceMemory: 8 }
   });
-  assert.deepEqual(chooseSurfaceSize(renderer, "cinematic", "tile"), {
-    width: 4096, height: 4096
-  });
+  assert.deepEqual(chooseSurfaceSize(renderer, "cinematic", "tile"), { width: 4096, height: 4096 });
+  assert.deepEqual(chooseSurfaceSize(renderer, "8k", "tile"), { width: 4096, height: 4096 });
+  maxTextureSize = 8192;
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { deviceMemory: 16 } });
+  assert.deepEqual(chooseSurfaceSize(renderer, "8k", "tile"), { width: 8192, height: 8192 });
   assert.deepEqual(chooseSurfaceSize(renderer, "cinematic", "equirectangular"), {
     width: 4096, height: 2048
   });
@@ -63,7 +61,7 @@ try {
   }
   const THREE = {
     DataTexture, Vector2, MeshPhysicalMaterial,
-    RGBAFormat: "rgba", RedFormat: "red",
+    RGBFormat: "rgb", RGFormat: "rg", RedFormat: "red",
     SRGBColorSpace: "srgb", NoColorSpace: "",
     RepeatWrapping: "repeat",
     LinearFilter: "linear", LinearMipmapLinearFilter: "linear-mipmap-linear"
@@ -86,12 +84,12 @@ try {
   assert.equal(cancelled, null, "Stale texture generation should abort between frame batches.");
   assert.equal(maps.width, expectedSize.width);
   assert.equal(maps.height, expectedSize.height);
-  assert.equal(maps.albedo.image.data.length, expectedSize.width * expectedSize.height * 4);
-  assert.equal(maps.normal.image.data.length, expectedSize.width * expectedSize.height * 4);
-  assert.equal(maps.roughness.image.data.length, expectedSize.width * expectedSize.height * 4);
-  assert.equal(maps.albedo.format, "rgba");
-  assert.equal(maps.normal.format, "rgba");
-  assert.equal(maps.roughness.format, "rgba");
+  assert.equal(maps.albedo.image.data.length, expectedSize.width * expectedSize.height * 3);
+  assert.equal(maps.normal.image.data.length, expectedSize.width * expectedSize.height * 3);
+  assert.equal(maps.roughness.image.data.length, expectedSize.width * expectedSize.height * 2);
+  assert.equal(maps.albedo.format, "rgb");
+  assert.equal(maps.normal.format, "rgb");
+  assert.equal(maps.roughness.format, "rg");
   assert.equal(maps.roughness.image.data[0], maps.roughness.image.data[1]);
   assert.equal(maps.heightMap.image.data.length, expectedSize.width * expectedSize.height);
   assert.equal(maps.albedo.colorSpace, "srgb");
@@ -119,7 +117,7 @@ try {
     }, { quality: "performance", aspect: "tile" });
     assert.equal(biomeMaps.width, 1024);
     assert.equal(biomeMaps.height, 1024);
-    assert.equal(biomeMaps.albedo.image.data.length, 1024 * 1024 * 4);
+    assert.equal(biomeMaps.albedo.image.data.length, 1024 * 1024 * 3);
     biomeMaps.dispose();
   }
   console.log("PBR contract: PASS — "+maps.width+"×"+maps.height+" "+generationAspect+" generation; all six biomes; 1K/2K/4K tier selection, GPU caps, four map channels and disposal.");
