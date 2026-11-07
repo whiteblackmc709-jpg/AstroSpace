@@ -30,20 +30,120 @@ const keys=new Set(),touchKeys=new Set();
   if(!save.introSeen)$("intro-overlay").hidden=false;
  }catch(error){
   console.error("AstroSpace prologue boot failed during "+bootStage,error);
-  const panel=$("webgl-error"),detail=panel?.querySelector("p");
-  if(detail){
-   const message=String(error?.message||error||"Unknown startup error").slice(0,240);
-   detail.textContent=bootStage+": "+message+" — reload the prologue. If this mentions WebGL/context, check browser graphics acceleration.";
-  }
-  if(panel)panel.hidden=false;
+  startCompatibilityScene(error,bootStage);
   loader?.classList.add("loaded");
+  setTimeout(()=>loader?.remove(),650);
  }
 })();
+
+function createAdaptiveRenderer(initialCanvas){
+ const attempts=[
+  {antialias:true,alpha:false,powerPreference:"high-performance"},
+  {antialias:false,alpha:false,powerPreference:"default"},
+  {antialias:false,alpha:false,powerPreference:"low-power"}
+ ];
+ let canvas=initialCanvas,lastError;
+ for(let i=0;i<attempts.length;i++){
+  try{
+   return new THREE.WebGLRenderer({canvas,...attempts[i],failIfMajorPerformanceCaveat:false,preserveDrawingBuffer:false});
+  }catch(error){
+   lastError=error;
+   if(i<attempts.length-1){
+    const replacement=document.createElement("canvas");
+    replacement.id=canvas.id;
+    replacement.className=canvas.className;
+    replacement.setAttribute("aria-label",canvas.getAttribute("aria-label")||"AstroSpace 3D world");
+    canvas.replaceWith(replacement);
+    canvas=replacement;
+   }
+  }
+ }
+ throw lastError||new Error("No compatible WebGL renderer could be created.");
+}
+
+function startCompatibilityScene(error,stage){
+ const original=$("game-canvas");
+ if(!original?.parentNode)return;
+ const canvas=document.createElement("canvas");
+ canvas.id="compatibility-canvas";
+ canvas.setAttribute("aria-label","AstroSpace compatibility scene");
+ original.parentNode.insertBefore(canvas,original);
+ original.style.display="none";
+ const ctx=canvas.getContext("2d",{alpha:false});
+ const panel=$("webgl-error");
+ if(panel){
+  panel.hidden=false;
+  panel.style.top="auto";
+  panel.style.bottom="88px";
+  panel.style.transform="translateX(-50%)";
+  panel.style.padding="12px 18px";
+  const heading=panel.querySelector("b"),detail=panel.querySelector("p"),link=panel.querySelector("a");
+  if(heading)heading.textContent="2D COMPATIBILITY MODE";
+  if(detail)detail.textContent="3D could not start ("+stage+"): "+String(error?.message||error||"unknown error").slice(0,150)+". The scene below is a visual fallback; enable WebGL / hardware acceleration and reload for full gameplay.";
+  if(link){link.textContent="RETRY 3D";link.href=window.location.href;}
+ }
+ if(!ctx)return;
+ const stars=Array.from({length:240},(_,i)=>({x:((i*7919)%997)/997,y:((i*3571)%991)/991,r:.35+((i*13)%10)/10,phase:i*.71}));
+ let width=0,height=0,dpr=1,frameId=0,previous=0;
+ const resize=()=>{
+  width=Math.max(1,window.innerWidth);height=Math.max(1,window.innerHeight);
+  dpr=Math.min(window.devicePixelRatio||1,1.5);
+  canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+  canvas.style.width=width+"px";canvas.style.height=height+"px";
+ };
+ const draw=now=>{
+  frameId=requestAnimationFrame(draw);
+  if(now-previous<30)return;
+  previous=now;
+  const t=now*.00012,move=(keys.has("KeyA")||touchKeys.has("KeyA")?-1:0)+(keys.has("KeyD")||touchKeys.has("KeyD")?1:0);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const sky=ctx.createLinearGradient(0,0,0,height);
+  sky.addColorStop(0,"#030914");sky.addColorStop(.48,"#0a2637");sky.addColorStop(1,"#102b32");
+  ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
+  const glow=ctx.createRadialGradient(width*.57,height*.46,4,width*.57,height*.46,Math.max(width,height)*.58);
+  glow.addColorStop(0,"rgba(57,166,169,.25)");glow.addColorStop(1,"rgba(3,9,20,0)");
+  ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
+  for(const star of stars){
+   const x=((star.x*width+Math.sin(t+star.phase)*8+width)%width);
+   const y=star.y*height*.72;
+   ctx.globalAlpha=.35+.55*(.5+.5*Math.sin(t*5+star.phase));
+   ctx.fillStyle="#d8fbff";ctx.beginPath();ctx.arc(x,y,star.r,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  const px=width*.72,py=height*.31,pr=Math.min(width,height)*.105;
+  const planet=ctx.createRadialGradient(px-pr*.35,py-pr*.4,pr*.05,px,py,pr);
+  planet.addColorStop(0,"#a9e8d4");planet.addColorStop(.48,"#368e91");planet.addColorStop(1,"#102f50");
+  ctx.fillStyle=planet;ctx.beginPath();ctx.arc(px,py,pr,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="rgba(130,240,220,.3)";ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(px,py+pr*.18,pr*1.55,pr*.32,-.2,Math.PI*1.08,Math.PI*1.95);ctx.stroke();
+  const horizon=height*.69;
+  const ridge=(base,amp,seed,color)=>{
+   ctx.beginPath();ctx.moveTo(0,height);
+   for(let x=0;x<=width+8;x+=8){const y=base+Math.sin(x*.004+seed+t)*amp+Math.sin(x*.011+seed*2)*amp*.34+Math.sin(x*.0017+seed)*amp*.6;ctx.lineTo(x,y);}
+   ctx.lineTo(width,height);ctx.closePath();ctx.fillStyle=color;ctx.fill();
+  };
+  ridge(horizon-75,52,1,"#173d48");ridge(horizon-25,38,3,"#0c2936");ridge(horizon+20,23,5,"#061923");
+  const unitX=width*.5+move*22,unitY=horizon-28;
+  ctx.save();ctx.translate(unitX,unitY);
+  ctx.shadowColor="#72e9e0";ctx.shadowBlur=18;
+  ctx.fillStyle="#9de7df";ctx.fillRect(-10,-39,20,25);
+  ctx.fillStyle="#d5f7f0";ctx.fillRect(-7,-34,14,8);
+  ctx.shadowBlur=0;ctx.fillStyle="#183b48";ctx.fillRect(-15,-14,30,24);
+  ctx.fillStyle="#70d9d0";ctx.fillRect(-18,9,11,19);ctx.fillRect(7,9,11,19);
+  ctx.strokeStyle="#8af4e7";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-12,-5);ctx.lineTo(-24,8);ctx.moveTo(12,-5);ctx.lineTo(24,8);ctx.stroke();
+  ctx.restore();
+  const vignette=ctx.createRadialGradient(width*.5,height*.48,Math.min(width,height)*.2,width*.5,height*.48,Math.max(width,height)*.75);
+  vignette.addColorStop(0,"rgba(0,0,0,0)");vignette.addColorStop(1,"rgba(0,4,12,.62)");
+  ctx.fillStyle=vignette;ctx.fillRect(0,0,width,height);
+ };
+ if(!width)resize();
+ window.addEventListener("resize",resize,{passive:true});
+ if(ctx)draw(0);
+}
 
 function initGame(){
  scene=new THREE.Scene();scene.background=new THREE.Color(currentWorld.sky);scene.fog=new THREE.Fog(currentWorld.fog,220,3700);
  camera=new THREE.PerspectiveCamera(settings.fov,1,.1,8500);
- renderer=new THREE.WebGLRenderer({canvas:$("game-canvas"),antialias:true,alpha:false,powerPreference:"high-performance"});
+ renderer=createAdaptiveRenderer($("game-canvas"));
  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.02;
  try{environmentTarget=createCinematicEnvironment(THREE,renderer);if(environmentTarget)scene.environment=environmentTarget.texture;}
  catch(error){environmentTarget=null;console.warn("AstroSpace cinematic environment skipped; using direct scene lighting",error);}
