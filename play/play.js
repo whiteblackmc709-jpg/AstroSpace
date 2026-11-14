@@ -4,7 +4,7 @@ import * as AccountSystem from "./auth.js";
 import * as SocialSystem from "./social.js";
 import { mountSocialUI } from "./social-ui.js";
 import { createPlanetPbrMaps, createPlanetPbrMaterial, createCinematicEnvironment } from "../assets/pbr-surfaces.js?v=toolbar-boot-fix-r1";
-import { createPlanetaryDetail } from "../assets/planetary-detail.js?v=toolbar-boot-fix-r1";
+import { createPlanetaryDetail } from "../assets/planetary-detail.js?v=orient-cylinder-three-scope-r1";
 import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS } from "./debug-harness.js?v=phase-1a-r1";
 const THREE_URL="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
 const SAVE_KEY="astrospace-campaign-v2";
@@ -38,7 +38,8 @@ const keys=new Set(),touchKeys=new Set();
   setTimeout(()=>loader.remove(),850);
   if(!save.introSeen&&!RUN_OPTIONS.bookmark)$("intro-overlay").hidden=false;
  }catch(error){
-  console.error("AstroSpace prologue boot failed during "+bootStage,error);
+  const errorStack=error?.stack||String(error||"Unknown startup error");
+  console.error("AstroSpace prologue boot failed during "+bootStage+"\n"+errorStack,error);
   startCompatibilityScene(error,bootStage);
   loader?.classList.add("loaded");
   setTimeout(()=>loader?.remove(),650);
@@ -88,7 +89,11 @@ function startCompatibilityScene(error,stage){
   panel.style.padding="12px 18px";
   const heading=panel.querySelector("b"),detail=panel.querySelector("p"),link=panel.querySelector("a");
   if(heading)heading.textContent="2D COMPATIBILITY MODE";
-  if(detail)detail.textContent="3D could not start ("+stage+"): "+String(error?.message||error||"unknown error").slice(0,150)+". The scene below is a visual fallback; enable WebGL / hardware acceleration and reload for full gameplay.";
+  const errorName=String(error?.name||"Error");
+  const errorMessage=String(error?.message||error||"Unknown startup error");
+  const isWebGLFailure=/webgl|webglrenderer|webgl context|context creation/i.test(errorName+" "+errorMessage);
+  const guidance=isWebGLFailure?" Check browser WebGL support and GPU acceleration.":" This is an application/runtime failure; see the browser console for the full stack.";
+  if(detail)detail.textContent="3D could not start ("+stage+"): "+errorName+": "+errorMessage.slice(0,220)+"."+guidance;
   if(link){link.textContent="RETRY 3D";link.href=window.location.href;}
  }
  if(!ctx)return;

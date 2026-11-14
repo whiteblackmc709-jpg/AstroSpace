@@ -125,7 +125,7 @@ function bladeGeometry(THREE){
  }
  p.needsUpdate=true;g.computeVertexNormals();return g;
 }
-function orientCylinder(dummy,x,y,z,dx,dy,dz,length,thickness,yaw=0){
+function orientCylinder(THREE,dummy,x,y,z,dx,dy,dz,length,thickness,yaw=0){
  const len=Math.hypot(dx,dy,dz)||1;
  dummy.position.set(x+dx*.5,y+dy*.5,z+dz*.5);
  dummy.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx/len,dy/len,dz/len));
@@ -218,7 +218,7 @@ export function createPlanetaryDetail(THREE,world,{
     const ba=a+k*Math.PI*.5+(seeded(i+k+230,seed)-.5)*.35;
     const reach=9+seeded(i+k+240,seed)*8,up=8+seeded(i+k+250,seed)*13;
     const startY=y+h*(.48+k*.075),dx=Math.cos(ba)*reach,dz=Math.sin(ba)*reach;
-    orientCylinder(dummy,x+Math.cos(ba)*2,startY,z+Math.sin(ba)*2,dx,up,dz,Math.hypot(dx,up,dz),.55);
+    orientCylinder(THREE,dummy,x+Math.cos(ba)*2,startY,z+Math.sin(ba)*2,dx,up,dz,Math.hypot(dx,up,dz),.55);
     branches.setMatrixAt(branchIndex++,dummy.matrix);
    }
    // Individual leaf blades in overlapping fans, not a single low-detail canopy blob.
@@ -277,7 +277,7 @@ export function createPlanetaryDetail(THREE,world,{
    for(let k=0;k<5;k++){
     const angle=seeded(i*7+k+1140,seed)*Math.PI*2,reach=4+seeded(i+k+1160,seed)*8,up=8+seeded(i+k+1180,seed)*22;
     const dx=Math.cos(angle)*reach,dz=Math.sin(angle)*reach;
-    orientCylinder(dummy,x,y,z,dx,up,dz,Math.hypot(dx,up,dz),.72+seeded(i+k+1200,seed)*.65);
+    orientCylinder(THREE,dummy,x,y,z,dx,up,dz,Math.hypot(dx,up,dz),.72+seeded(i+k+1200,seed)*.65);
     branches.setMatrixAt(bi++,dummy.matrix);
     branches.setColorAt(bi-1,reefTints[(i+k)%reefTints.length]);
    }

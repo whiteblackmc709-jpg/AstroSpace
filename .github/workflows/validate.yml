@@ -43,6 +43,11 @@ jobs:
           assert play_css.count("(") == play_css.count(")")
           print("Website + playable prologue + player controls contract: PASS")
           PY
+      - name: Install pinned Three.js runtime for scene regressions
+        run: |
+          THREE_ROOT="$RUNNER_TEMP/astrospace-three-runtime"
+          npm install --prefix "$THREE_ROOT" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund three@0.170.0
+          ASTROSPACE_THREE_ROOT="$THREE_ROOT" node tests/test_planetary_three_runtime.mjs
       - name: Run browser gameplay contracts
         run: |
           node tests/test_campaign.mjs
