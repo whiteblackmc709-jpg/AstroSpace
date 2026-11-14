@@ -5,9 +5,14 @@ import * as SocialSystem from "./social.js";
 import { mountSocialUI } from "./social-ui.js";
 import { createPlanetPbrMaps, createPlanetPbrMaterial, createCinematicEnvironment } from "../assets/pbr-surfaces.js?v=toolbar-boot-fix-r1";
 import { createPlanetaryDetail } from "../assets/planetary-detail.js?v=toolbar-boot-fix-r1";
+import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS } from "./debug-harness.js?v=phase-1a-r1";
 const THREE_URL="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
 const SAVE_KEY="astrospace-campaign-v2";
-const WORLDS=PLANETS;
+const RUN_OPTIONS=parsePlayDebugOptions(window.location.search);
+const RUN_SEED=RUN_OPTIONS.seed;
+const WORLDS=RUN_SEED===null?PLANETS:PLANETS.map(w=>({...w,seed:(w.seed+RUN_SEED)>>>0}));
+const seedRegion=region=>RUN_SEED===null?region:{...region,seed:(region.seed+RUN_SEED)>>>0};
+const eventRandom=createSeededRandom(RUN_SEED);
 const $=id=>document.getElementById(id),clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
 const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const toast=msg=>{const n=$("toast-message");n.textContent=msg;n.classList.add("visible");clearTimeout(toast.timer);toast.timer=setTimeout(()=>n.classList.remove("visible"),2900);};
@@ -16,7 +21,7 @@ const freshSave=()=>({regionCursor:0,taskProgress:{},completedRegions:[],complet
 
 function loadSave(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return freshSave();const p=JSON.parse(raw),b=freshSave();return {...b,...p,taskProgress:p.taskProgress&&typeof p.taskProgress==="object"?p.taskProgress:{},completedRegions:Array.isArray(p.completedRegions)?p.completedRegions:[],completedPlanets:Array.isArray(p.completedPlanets)?p.completedPlanets:[],bonusFound:Array.isArray(p.bonusFound)?p.bonusFound:[],unlockedWorlds:Array.isArray(p.unlockedWorlds)?p.unlockedWorlds:["kharon"],regionCursor:clamp(Number(p.regionCursor)||0,0,REGIONS.length-1),character:{...DEFAULT_CHARACTER,...(p.character&&typeof p.character==="object"?p.character:{})}};}catch{return freshSave();}}
 const save=loadSave();
-let THREE,scene,camera,renderer,clock,avatar,worldRoot,terrain,biomeDetail=null,skyShell=null,skyDomeMaterial=null,sunLight=null,fillLight=null,frontFillLight=null,worldGlow=null,transitRoot=null,travelSequence=null,relays=[],missionEntities=[],secretEntities=[],activeEventEntities=[],worldShaders=[],currentRegion=REGIONS[Math.min(save.regionCursor,REGIONS.length-1)],currentWorld=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];
+let THREE,scene,camera,renderer,clock,avatar,worldRoot,terrain,biomeDetail=null,skyShell=null,skyDomeMaterial=null,sunLight=null,fillLight=null,frontFillLight=null,worldGlow=null,transitRoot=null,travelSequence=null,relays=[],missionEntities=[],secretEntities=[],activeEventEntities=[],worldShaders=[],debugOverlay=null,currentRegion=seedRegion(REGIONS[Math.min(save.regionCursor,REGIONS.length-1)]),currentWorld=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];
 let accountSession=null,accountConfigured=false,cloudSaveTimer=null,stepAccumulator=0,eventNextAt=55,eventUntil=0,activeEvent="",audioStarted=false,uiSystems=null,environmentTarget=null,settings={quality:(()=>{try{const q=JSON.parse(localStorage.getItem("astrospace-settings-v2")||"{}").quality;return ["performance","balanced","cinematic","4k","8k"].includes(q)?q:"balanced";}catch{return "balanced";}})(),fov:58,sensitivity:1,invert:false,reducedMotion:false,music:.24,ambience:.22,sfx:.55,subtitles:true,hud:true};
 let yaw=0,pitch=.13,cameraDistance=17.5,dragging=false,lastX=0,lastY=0,flightMode=false,velocityY=0,horizontalFlightSpeed=0,jumpVelocity=0,elapsed=0,frame=0;
 let animatedObjects=[],adaptiveScale=1,performanceElapsed=0,performanceFrames=0,lastFps=60,graphicsProfile={pixelRatio:1.32,shadowSize:1536,maxPixels:4800000,exposure:1.08};
@@ -31,7 +36,7 @@ const keys=new Set(),touchKeys=new Set();
   initGame();
   loader.classList.add("loaded");
   setTimeout(()=>loader.remove(),850);
-  if(!save.introSeen)$("intro-overlay").hidden=false;
+  if(!save.introSeen&&!RUN_OPTIONS.bookmark)$("intro-overlay").hidden=false;
  }catch(error){
   console.error("AstroSpace prologue boot failed during "+bootStage,error);
   startCompatibilityScene(error,bootStage);
@@ -164,15 +169,38 @@ function initGame(){
   getWorld:()=>currentWorld,
   getRegion:()=>currentRegion,
   applyGraphics:(prefs)=>applyGraphicsSettings(prefs),
-  onSession:async(session)=>{accountSession=session||null;accountConfigured=!!AccountSystem.getSupabase();if(session){try{const cloud=await AccountSystem.loadCloudProgress();const score=(v)=>((v?.completedRegions?.length||0)*4)+Object.values(v?.taskProgress||{}).filter(t=>t?.complete).length;if(cloud&&score(cloud)>score(save)){Object.assign(save,cloud);save.character=normaliseCharacter(cloud.character||save.character);applyCharacterProfile(save.character);save.regionCursor=clamp(Number(save.regionCursor)||0,0,REGIONS.length-1);currentRegion=REGIONS[save.regionCursor];currentWorld=PLANETS.find(w=>w.id===currentRegion.planetId)||PLANETS[0];buildWorld(currentWorld.id,false);toast("CLOUD EXPEDITION RESTORED");}else persist();}catch(error){console.warn("Cloud save not ready",error);}}else{accountSession=null;}},
+  onSession:async(session)=>{accountSession=session||null;accountConfigured=!!AccountSystem.getSupabase();if(session){try{const cloud=await AccountSystem.loadCloudProgress();const score=(v)=>((v?.completedRegions?.length||0)*4)+Object.values(v?.taskProgress||{}).filter(t=>t?.complete).length;if(cloud&&score(cloud)>score(save)){Object.assign(save,cloud);save.character=normaliseCharacter(cloud.character||save.character);applyCharacterProfile(save.character);save.regionCursor=clamp(Number(save.regionCursor)||0,0,REGIONS.length-1);currentRegion=seedRegion(REGIONS[save.regionCursor]);currentWorld=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];buildWorld(currentWorld.id,false);toast("CLOUD EXPEDITION RESTORED");}else persist();}catch(error){console.warn("Cloud save not ready",error);}}else{accountSession=null;}},
  });
  resize();
  window.addEventListener("resize",resize);window.addEventListener("keydown",onKeyDown);window.addEventListener("keyup",e=>keys.delete(e.code));window.addEventListener("blur",()=>{keys.clear();touchKeys.clear();});
  $("game-canvas").addEventListener("pointerdown",onPointerDown);window.addEventListener("pointermove",onPointerMove);window.addEventListener("pointerup",()=>dragging=false);
  $("game-canvas").addEventListener("wheel",e=>{e.preventDefault();if(!travelSequence)cameraDistance=clamp(cameraDistance+e.deltaY*.012,10,34);},{passive:false});
  $("begin-button").addEventListener("click",()=>{$("intro-overlay").hidden=true;save.introSeen=true;persist();toast("A.R.I.A. ONLINE // RESTORE THE THREE ANCIENT RELAYS");});
- updateUI();requestAnimationFrame(animate);
+ updateUI();applyCameraBookmark();debugOverlay=createPlayDebugOverlay({renderer,options:RUN_OPTIONS,getQuality:()=>settings.quality});requestAnimationFrame(animate);
 }
+function applyCameraBookmark(){
+ const bookmark=RUN_OPTIONS.bookmark;
+ if(!bookmark)return;
+ const preset=PLAY_DEBUG_BOOKMARKS[bookmark];if(!preset)return;
+ yaw=preset.yaw;pitch=preset.pitch;cameraDistance=preset.distance;
+ const x=currentRegion.center.x-280,z=currentRegion.center.z+260,ground=getGround(x,z);
+ avatar.group.position.set(x,ground,z);
+ velocityY=0;jumpVelocity=0;
+ flightMode=!!(preset.flight&&RUN_OPTIONS.debug);
+ if(flightMode){
+  avatar.group.position.y=ground+preset.altitude;
+  avatar.thrusterLeft.visible=true;avatar.thrusterRight.visible=true;
+  $("flight-hud").hidden=false;
+  $("flight-button").disabled=false;
+  $("flight-button").classList.add("selected");
+  $("flight-button").innerHTML="<span>✧</span> LAND / WALK <kbd>G</kbd>";
+  $("control-guide").innerHTML="<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> FLY</span><span><kbd>SPACE</kbd> ASCEND</span><span><kbd>CTRL</kbd> DESCEND</span><span><kbd>SHIFT</kbd> BOOST</span><span><kbd>G</kbd> LAND</span>";
+ }else{
+  avatar.thrusterLeft.visible=false;avatar.thrusterRight.visible=false;
+  $("flight-hud").hidden=true;
+ }
+}
+
 function bindUI(){
  $("character-button").addEventListener("click",openCharacterEditor);
  $("character-close").addEventListener("click",()=>{$("character-overlay").hidden=true;applyCharacterProfile(save.character);});
@@ -1018,8 +1046,8 @@ function saveCharacterProfile(){
 }
 function buildWorld(worldId,travel=true){
  clearWorldEvent();
- currentRegion=REGIONS[Math.min(save.regionCursor,REGIONS.length-1)]||REGIONS[0];
- const next=PLANETS.find(w=>w.id===currentRegion.planetId)||PLANETS[0];if(worldId&&worldId!==next.id)worldId=next.id;
+ currentRegion=seedRegion(REGIONS[Math.min(save.regionCursor,REGIONS.length-1)]||REGIONS[0]);
+ const next=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];if(worldId&&worldId!==next.id)worldId=next.id;
  disposeWorld();currentWorld=next;scene.background=new THREE.Color(next.sky);scene.fog=new THREE.Fog(next.fog,560,4800);
  if(skyDomeMaterial){skyDomeMaterial.uniforms.uHorizon.value.set(next.palette[2]);skyDomeMaterial.uniforms.uZenith.value.set(next.sky);skyDomeMaterial.uniforms.uDeep.value.set(next.palette[0]);skyDomeMaterial.uniforms.uAccent.value.set(next.accent);}
 
@@ -1100,7 +1128,7 @@ function disposeTransitBackdrop(){
 }
 function beginPlayerFlight(destinationRegion){
  if(travelSequence)return;
- const destinationWorld=PLANETS.find(w=>w.id===destinationRegion.planetId);
+ const destinationWorld=WORLDS.find(w=>w.id===destinationRegion.planetId);
  if(!destinationWorld){currentRegion=destinationRegion;buildWorld(destinationRegion.planetId,true);return;}
  const samePlanet=destinationWorld.id===currentWorld.id,startX=avatar.group.position.x,startY=avatar.group.position.y,startZ=avatar.group.position.z;
  const landingX=destinationRegion.center.x-280,landingZ=destinationRegion.center.z+260;
@@ -1253,8 +1281,8 @@ function clearWorldEvent(){
 function triggerWorldEvent(){
  clearWorldEvent();
  const events=EVENT_NAMES[currentWorld.id]||["Anomaly surge"];
- activeEvent=events[Math.floor(Math.random()*events.length)];
- eventUntil=elapsed+68;eventNextAt=elapsed+245+Math.random()*95;
+ activeEvent=events[Math.floor(eventRandom()*events.length)];
+ eventUntil=elapsed+68;eventNextAt=elapsed+245+eventRandom()*95;
  for(let i=0;i<4;i++){
   const a=i/4*Math.PI*2+.6,r=140+deterministic(i,currentRegion.seed+Math.floor(elapsed))*155;
   const x=avatar.group.position.x+Math.cos(a)*r,z=avatar.group.position.z+Math.sin(a)*r;
@@ -1270,7 +1298,7 @@ function triggerWorldEvent(){
 
 function toggleFlight(){
  if(travelSequence)return;
- if(!save.flightUnlocked){toast("FLIGHT LICENSE LOCKED // COMPLETE ALL FOUR ELYNDRA REGIONS");return;}
+ if(!save.flightUnlocked&&!(RUN_OPTIONS.debug&&RUN_OPTIONS.bookmark==="aether")){toast("FLIGHT LICENSE LOCKED // COMPLETE ALL FOUR ELYNDRA REGIONS");return;}
  flightMode=!flightMode;$("flight-hud").hidden=!flightMode;$("flight-button").classList.toggle("selected",flightMode);
  $("flight-button").innerHTML=flightMode?"<span>✧</span> LAND / WALK <kbd>G</kbd>":"<span>✧</span> AETHER FLIGHT <kbd>G</kbd>";
  $("control-guide").innerHTML=flightMode?"<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> FLY</span><span><kbd>SPACE</kbd> ASCEND</span><span><kbd>CTRL</kbd> DESCEND</span><span><kbd>SHIFT</kbd> BOOST</span><span><kbd>G</kbd> LAND</span>":"<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> MOVE</span><span><kbd>SHIFT</kbd> RUN</span><span><kbd>SPACE</kbd> JUMP</span><span><kbd>E</kbd> INTERACT</span><span><kbd>DRAG</kbd> LOOK</span>";
@@ -1345,5 +1373,5 @@ function animate(){
  if(frame%8===0){updatePrompt();updateWorldUI();updateFlightReadout();}
  if(frame%600===0)persist();
  updatePerformanceGovernor(rawDt);
- renderer.render(scene,camera);
+ renderer.render(scene,camera);debugOverlay?.update(rawDt);
 }
