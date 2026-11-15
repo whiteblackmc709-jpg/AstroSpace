@@ -78,13 +78,16 @@ export function createTerrainChunkBuildJob(THREE,world,{
  const positions=new Float32Array(vertexCount*3);
  const normals=new Float32Array(vertexCount*3);
  const colors=new Float32Array(vertexCount*3);
+ const uvs=new Float32Array(vertexCount*2);
  const geometry=new THREE.BufferGeometry();
  const positionAttribute=new THREE.BufferAttribute(positions,3);
  const normalAttribute=new THREE.BufferAttribute(normals,3);
  const colorAttribute=new THREE.BufferAttribute(colors,3);
+ const uvAttribute=new THREE.BufferAttribute(uvs,2);
  geometry.setAttribute("position",positionAttribute);
  geometry.setAttribute("normal",normalAttribute);
  geometry.setAttribute("color",colorAttribute);
+ geometry.setAttribute("uv",uvAttribute);
  geometry.setIndex(new THREE.BufferAttribute(indexArray,1));
 
  const half=size*.5,step=size/segments;
@@ -127,6 +130,11 @@ export function createTerrainChunkBuildJob(THREE,world,{
   const row=Math.floor(vertex/stride),column=vertex-row*stride,k=vertex*3;
   const x=-half+column*step,z=-half+row*step,y=terrainHeight(centerX+x,centerZ+z,world);
   positions[k]=x;positions[k+1]=y;positions[k+2]=z;
+  // Match THREE.PlaneGeometry(size, size) before rotateX(-PI/2):
+  // U runs left-to-right; V runs 1 at the negative-Z edge to 0 at +Z.
+  const uv=vertex*2;
+  uvs[uv]=column/segments;
+  uvs[uv+1]=1-row/segments;
   trackBounds(x,y,z);
  }
 
@@ -164,6 +172,9 @@ export function createTerrainChunkBuildJob(THREE,world,{
   else if(side===2){normals[destination]=0;normals[destination+1]=0;normals[destination+2]=-1;}
   else{normals[destination]=0;normals[destination+1]=0;normals[destination+2]=1;}
   colors[destination]=colors[source];colors[destination+1]=colors[source+1];colors[destination+2]=colors[source+2];
+  const sourceVertex=source/3,destinationVertex=surfaceVertexCount+vertex;
+  uvs[destinationVertex*2]=uvs[sourceVertex*2];
+  uvs[destinationVertex*2+1]=uvs[sourceVertex*2+1];
   trackBounds(positions[destination],positions[destination+1],positions[destination+2]);
  }
 
@@ -172,6 +183,7 @@ export function createTerrainChunkBuildJob(THREE,world,{
   positionAttribute.needsUpdate=true;
   normalAttribute.needsUpdate=true;
   colorAttribute.needsUpdate=true;
+  uvAttribute.needsUpdate=true;
   geometry.index.needsUpdate=true;
   geometry.boundingBox=new THREE.Box3(
    new THREE.Vector3(minX,minY,minZ),
