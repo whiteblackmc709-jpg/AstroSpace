@@ -1,7 +1,7 @@
 # AstroSpace — Phase 1A browser baseline
 
 Ngày ghi nhận: 2026-11-15  
-Commit được đo: `5234c56eea34c81ef6adfff3ee2f0964dfb2070d`  
+**Baseline freeze / immutable commit:** `5234c56eea34c81ef6adfff3ee2f0964dfb2070d`  
 Branch/preview được mở: `phase/1a-measurement-harness`  
 URL mẫu: `/play/?debug=1&seed=1&bookmark=<bookmark>`
 
@@ -55,7 +55,7 @@ Năm ảnh gốc đã được đính kèm theo yêu cầu trong cuộc hội th
 
 ## Kết quả baseline hiện tại
 
-Baseline 1A đã có số đo trình duyệt thật cho cả năm bookmark, nhưng `near` cần retake để đồng nhất trạng thái event và metadata CPU/GPU còn thiếu. Giữ nguyên deployment được build từ commit `5234c56`; không redeploy hoặc thay đổi URL baseline đó.
+Baseline 1A được cố định trực tiếp bằng SHA commit `5234c56eea34c81ef6adfff3ee2f0964dfb2070d` (không yêu cầu Git tag); tài liệu này cùng ảnh và số liệu là hồ sơ baseline. Có số đo trình duyệt thật cho cả năm bookmark, nhưng `near` cần retake để đồng nhất trạng thái event và metadata CPU/GPU còn thiếu. Giữ nguyên deployment được build từ commit `5234c56`; không redeploy hoặc thay đổi URL baseline đó.
 
 
 ## Bổ sung instrumentation CPU/GPU (Phase 1A)

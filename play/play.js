@@ -1,4 +1,5 @@
 import { PLANETS, REGIONS, EVENT_NAMES } from "./region-data.js";
+import { normalizeLegacyQuality, resolveQualityProfile } from "./quality-profile.js?v=phase-1c-quality-profile-r1";
 import * as AudioSystem from "./audio.js";
 import * as AccountSystem from "./auth.js";
 import * as SocialSystem from "./social.js";
@@ -22,7 +23,8 @@ const freshSave=()=>({regionCursor:0,taskProgress:{},completedRegions:[],complet
 function loadSave(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return freshSave();const p=JSON.parse(raw),b=freshSave();return {...b,...p,taskProgress:p.taskProgress&&typeof p.taskProgress==="object"?p.taskProgress:{},completedRegions:Array.isArray(p.completedRegions)?p.completedRegions:[],completedPlanets:Array.isArray(p.completedPlanets)?p.completedPlanets:[],bonusFound:Array.isArray(p.bonusFound)?p.bonusFound:[],unlockedWorlds:Array.isArray(p.unlockedWorlds)?p.unlockedWorlds:["kharon"],regionCursor:clamp(Number(p.regionCursor)||0,0,REGIONS.length-1),character:{...DEFAULT_CHARACTER,...(p.character&&typeof p.character==="object"?p.character:{})}};}catch{return freshSave();}}
 const save=loadSave();
 let THREE,scene,camera,renderer,clock,avatar,worldRoot,terrain,biomeDetail=null,skyShell=null,skyDomeMaterial=null,sunLight=null,fillLight=null,frontFillLight=null,worldGlow=null,transitRoot=null,travelSequence=null,relays=[],missionEntities=[],secretEntities=[],activeEventEntities=[],worldShaders=[],debugOverlay=null,currentRegion=seedRegion(REGIONS[Math.min(save.regionCursor,REGIONS.length-1)]),currentWorld=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];
-let accountSession=null,accountConfigured=false,cloudSaveTimer=null,stepAccumulator=0,eventNextAt=55,eventUntil=0,activeEvent="",audioStarted=false,uiSystems=null,environmentTarget=null,settings={quality:(()=>{try{const q=JSON.parse(localStorage.getItem("astrospace-settings-v2")||"{}").quality;return ["performance","balanced","cinematic","4k","8k"].includes(q)?q:"balanced";}catch{return "balanced";}})(),fov:58,sensitivity:1,invert:false,reducedMotion:false,music:.24,ambience:.22,sfx:.55,subtitles:true,hud:true};
+const INITIAL_QUALITY=(()=>{try{return normalizeLegacyQuality(JSON.parse(localStorage.getItem("astrospace-settings-v2")||"{}").quality);}catch{return "balanced";}})();
+let accountSession=null,accountConfigured=false,cloudSaveTimer=null,stepAccumulator=0,eventNextAt=55,eventUntil=0,activeEvent="",audioStarted=false,uiSystems=null,environmentTarget=null,settings={quality:INITIAL_QUALITY,qualityProfile:resolveQualityProfile(INITIAL_QUALITY).id,fov:58,sensitivity:1,invert:false,reducedMotion:false,music:.24,ambience:.22,sfx:.55,subtitles:true,hud:true};
 let yaw=0,pitch=.13,cameraDistance=17.5,dragging=false,lastX=0,lastY=0,flightMode=false,velocityY=0,horizontalFlightSpeed=0,jumpVelocity=0,elapsed=0,frame=0;
 let animatedObjects=[],adaptiveScale=1,performanceElapsed=0,performanceFrames=0,lastFps=60,graphicsProfile={pixelRatio:1.32,shadowSize:1536,maxPixels:4800000,exposure:1.08};
 const keys=new Set(),touchKeys=new Set();
@@ -248,7 +250,8 @@ function syncRenderScale(){
  const node=$("render-scale-display");if(node)node.textContent="RENDER "+Math.round(ratio*100)+"%";
 }
 function applyGraphicsSettings(prefs={}){
- const quality=prefs.quality||settings.quality||"balanced";
+ const resolvedProfile=resolveQualityProfile(prefs.quality||settings.quality||"balanced");
+ const quality=resolvedProfile.legacyQuality;
  const profiles={
   performance:{pixelRatio:1,shadowSize:1024,maxPixels:2400000,exposure:1.08},
   balanced:{pixelRatio:1.32,shadowSize:1536,maxPixels:4800000,exposure:1.08},
@@ -257,7 +260,7 @@ function applyGraphicsSettings(prefs={}){
   "8k":{pixelRatio:1.9,shadowSize:3072,maxPixels:12000000,exposure:1.12}
  };
  graphicsProfile=profiles[quality]||profiles.balanced;
- settings={...settings,...prefs,quality,adaptiveQuality:prefs.adaptiveQuality!==false};
+ settings={...settings,...prefs,quality,qualityProfile:resolvedProfile.id,adaptiveQuality:prefs.adaptiveQuality!==false};
  if(settings.adaptiveQuality===false)adaptiveScale=1;
  if(renderer){
   renderer.toneMappingExposure=graphicsProfile.exposure;

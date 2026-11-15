@@ -39,7 +39,7 @@ Schema JSON, canonical ID migration, legacy data migration, Web Workers/Offscree
 - QualityProfile adapter cho legacy quality values; mapping phải giữ đúng pixel ratio, max pixel budget, shadow size, exposure và profile đang lưu, tương thích `astrospace-settings-v2`.
 - Tái sử dụng scratch Vector3/Matrix4/Color trong update path, không đổi kết quả camera/movement; ưu tiên `updateCamera()`, `moveRobot()` và các hot path đã xác nhận.
 - Bảo đảm chunk/world dispose geometry/material/texture đúng ownership, idempotent và không dispose resource dùng chung còn tham chiếu giữa chunk/world.
-- Không đổi governor hoặc chất lượng hình ảnh mặc định trong 1C. Baseline đã được gửi; remote tag `baseline-phase1a-5234c56` vẫn phải xác nhận trước khi tạo commit 1C.
+- Không đổi governor hoặc chất lượng hình ảnh mặc định trong 1C. Baseline đã được gửi; baseline được cố định trực tiếp bằng commit SHA `5234c56eea34c81ef6adfff3ee2f0964dfb2070d` cùng ảnh/số liệu tại `docs/BASELINE.md`; không cần Git tag để tiếp tục.
 
 ### Gate Phase 1
 
