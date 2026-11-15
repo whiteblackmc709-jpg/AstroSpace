@@ -1,4 +1,9 @@
 import { PLANETS, REGIONS, EVENT_NAMES } from "./region-data.js";
+import { terrainHeight } from "./terrain-sampling.js";
+import {
+ createTerrainLodLayout, createTerrainChunkBuildJob, getTerrainBaseSegments,
+ TERRAIN_BUILD_BUDGET_MS, TERRAIN_BUILD_WORK_QUANTUM, TERRAIN_CHUNK_SIZE
+} from "./terrain-lod.js";
 import { disposeObject3DResources, disposeResourcesIfUnreferenced } from "../assets/three-resource-lifecycle.js?v=phase-1c-dispose-r1";
 import { normalizeLegacyQuality, resolveQualityProfile } from "./quality-profile.js?v=phase-1c-quality-profile-r1";
 import * as AudioSystem from "./audio.js";
@@ -372,120 +377,105 @@ function createAurora(parent){
  group.position.set(0,0,0);parent.add(group);return group;
 }
 
-function noise2(x,z,seed){
- const ix=Math.floor(x),iz=Math.floor(z),fx=x-ix,fz=z-iz,sx=fx*fx*(3-2*fx),sz=fz*fz*(3-2*fz);
- const hash=(a,b)=>{const n=Math.sin(a*127.1+b*311.7+seed*71.73)*43758.5453;return n-Math.floor(n);};
- const a=hash(ix,iz),b=hash(ix+1,iz),c=hash(ix,iz+1),d=hash(ix+1,iz+1);return lerp(lerp(a,b,sx),lerp(c,d,sx),sz);
-}
-function fbm2(x,z,seed){let v=0,amp=.52,norm=0;for(let i=0;i<5;i++){v+=noise2(x,z,seed+i*17)*amp;norm+=amp;x=x*2.03+13.7;z=z*2.03-7.1;amp*=.49;}return v/norm;}
-function terrainHeight(x,z,w){
- const continental=fbm2(x*.00155,z*.00155,w.seed+3);
- const rolling=fbm2(x*.0058+11,z*.0058-7,w.seed+19);
- const fine=noise2(x*.018+31,z*.018-17,w.seed+47);
- const micro=noise2(x*.052-9,z*.052+23,w.seed+83);
- const ridge=1-Math.abs(rolling*2-1);
- const detail=fine-.5,grain=micro-.5;
- const erosion=noise2(x*.011+71,z*.011-53,w.seed+101);
- const incised=(1-smooth(.025,.19,Math.abs(erosion-.51)))*2.2;
- let h=(continental-.5)*52+(rolling-.5)*25+(ridge-.52)*10+detail*3+grain*.8-incised*.45;
- if(w.terrain===0){
-  const terrace=Math.pow(Math.max(0,ridge-.48),1.24);
-  h=(continental-.5)*66+(rolling-.5)*31+terrace*10+detail*3.1+grain*1.05-incised;
- }else if(w.terrain===1){
-  const shelf=smooth(.41,.72,continental);
-  h=(continental-.5)*31+(rolling-.5)*20+(ridge-.56)*6+detail*1.8+grain*.5-incised*.35+shelf*1.1;
- }else if(w.terrain===2){
-  const volcanicRidge=Math.pow(Math.max(0,ridge-.22),1.42);
-  const caldera=Math.sin(continental*22+rolling*8)*Math.pow(Math.max(0,rolling-.56),2)*5;
-  h=(continental-.5)*58+(rolling-.5)*28+volcanicRidge*31+detail*3.4+grain*1.2+caldera;
- }else if(w.terrain===3){
-  const fracture=Math.pow(Math.max(0,ridge-.28),1.25);
-  h=(continental-.5)*70+(rolling-.5)*37+fracture*25+detail*3.8+grain*1.35-incised*.3;
- }else if(w.terrain===4){
-  const band=.5+.5*Math.sin(z*.0024+rolling*3.2);
-  h=(continental-.5)*38+(rolling-.5)*22+(ridge-.5)*14+detail*2.1+grain*.55+(band-.5)*7;
- }else if(w.terrain===5){
-  const glacialRidge=Math.pow(Math.max(0,ridge-.34),1.28);
-  h=(continental-.5)*49+(rolling-.5)*28+glacialRidge*19+detail*2.8+grain*.85-incised*.55;
- }
- const spawnBlend=smooth(24,220,Math.hypot(x,z));
- return lerp(-1.2,h,spawnBlend);
-}
 function deterministic(i,seed){const n=Math.sin(i*127.1+seed*311.7)*43758.5453;return n-Math.floor(n);}
-function terrainColorVariation(w,x,z,height,normalY){
- const kind=Number(w.terrain)||0,macro=noise2(x*.009+7,z*.009-11,w.seed+133),micro=noise2(x*.061-19,z*.061+29,w.seed+151);
- const slope=1-clamp(normalY,0,1),grain=(macro-.5)*.18+(micro-.5)*.075;
- let tint=[1+grain,1+grain,1+grain];
- if(kind===0){
-  const mineral=smooth(18,42,height),wet=1-smooth(-3,6,height);
-  tint=[.88+mineral*.16+grain,.98+mineral*.12+grain,.84+mineral*.17+grain];
-  tint[1]+=wet*.08;tint[2]+=wet*.12;
- }else if(kind===1){
-  const reef=smooth(-2,16,height),deep=1-smooth(-8,7,height);
-  tint=[.76+reef*.15+grain,.98+reef*.12+grain,1.02+grain+deep*.08];
- }else if(kind===2){
-  const ash=smooth(8,30,height),heat=1-smooth(.02,.19,Math.abs(micro-.53));
-  tint=[.82+ash*.15+grain+heat*.18,.78+grain+heat*.07,.75+grain];
- }else if(kind===3){
-  const exposed=smooth(8,34,height);
-  tint=[.84+exposed*.13+grain,.78+exposed*.16+grain,.98+grain];
- }else if(kind===4){
-  const cloudBand=.5+.5*Math.sin(x*.003+macro*5);
-  tint=[.94+cloudBand*.08+grain,.86+cloudBand*.1+grain,.78+cloudBand*.14+grain];
- }else{
-  const snow=smooth(4,23,height),crevasse=1-smooth(.02,.18,Math.abs(micro-.5));
-  tint=[.77+snow*.22+grain,.9+snow*.17+grain,1.02+grain-crevasse*.09];
- }
- const face=slope>.34?1.04:1;
- return tint.map(v=>clamp(v*face,.58,1.34));
-}
-function updateTerrainVertexColors(geometry,w,cx,cz){
- const position=geometry.attributes.position,normal=geometry.attributes.normal;
- let attribute=geometry.attributes.color;
- if(!attribute||attribute.count!==position.count){
-  attribute=new THREE.BufferAttribute(new Float32Array(position.count*3),3);
-  geometry.setAttribute("color",attribute);
- }
- const colors=attribute.array;
- for(let i=0;i<position.count;i++){
-  const x=position.getX(i)+cx,z=position.getZ(i)+cz,y=position.getY(i);
-  const n=normal?normal.getY(i):1,tint=terrainColorVariation(w,x,z,y,n),k=i*3;
-  colors[k]=tint[0];colors[k+1]=tint[1];colors[k+2]=tint[2];
- }
- attribute.needsUpdate=true;
-}
-function createTerrainChunk(w,material,cx,cz,size=900,segments=128){
- const geo=new THREE.PlaneGeometry(size,size,segments,segments);geo.rotateX(-Math.PI/2);const pos=geo.attributes.position;
- for(let i=0;i<pos.count;i++)pos.setY(i,terrainHeight(pos.getX(i)+cx,pos.getZ(i)+cz,w));
- pos.needsUpdate=true;geo.computeVertexNormals();updateTerrainVertexColors(geo,w,cx,cz);
- const mesh=new THREE.Mesh(geo,material);mesh.position.set(cx,0,cz);mesh.receiveShadow=true;mesh.castShadow=false;mesh.userData.chunkCenter={x:cx,z:cz};return mesh;
-}
-function updateTerrainChunk(mesh,w,cx,cz){
- const old=mesh.userData.chunkCenter;if(old&&old.x===cx&&old.z===cz)return;
- const p=mesh.geometry.attributes.position;
- for(let i=0;i<p.count;i++)p.setY(i,terrainHeight(p.getX(i)+cx,p.getZ(i)+cz,w));
- p.needsUpdate=true;mesh.geometry.computeVertexNormals();updateTerrainVertexColors(mesh.geometry,w,cx,cz);
- mesh.position.set(cx,0,cz);mesh.userData.chunkCenter={x:cx,z:cz};
-}
 function createTerrain(w){
- const group=new THREE.Group(),size=900,chunks=[];
+ const group=new THREE.Group(),size=TERRAIN_CHUNK_SIZE,chunks=[];
  let currentMaps=null,currentMaterial=new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.94,metalness:.012,vertexColors:true}),generation=0,currentQuality=null,pendingQuality=null,pendingPromise=null;
- const segmentsFor=quality=>({performance:128,balanced:224,cinematic:320,"4k":384,"8k":448}[quality]||224);
- let currentSegments=segmentsFor(settings.quality);
- for(let z=-1;z<=1;z++)for(let x=-1;x<=1;x++){const mesh=createTerrainChunk(w,currentMaterial,x*size,z*size,size,currentSegments);group.add(mesh);chunks.push(mesh);}
- group.userData.setGeometryQuality=quality=>{
-  const nextSegments=segmentsFor(quality);
-  if(nextSegments===currentSegments)return;
-  for(const mesh of chunks){
-   const oldGeometry=mesh.geometry,center=mesh.userData.chunkCenter||{x:mesh.position.x,z:mesh.position.z};
-   const replacement=createTerrainChunk(w,currentMaterial,center.x,center.z,size,nextSegments);
-   mesh.geometry=replacement.geometry;
-   replacement.geometry=oldGeometry;
-   disposeResourcesIfUnreferenced([oldGeometry],scene);
-   mesh.userData.chunkCenter={x:center.x,z:center.z};
-  }
-  currentSegments=nextSegments;
+ let currentSegments=getTerrainBaseSegments(settings.quality),baseX=0,baseZ=0,buildGeneration=0,buildQueue=[],activeBuild=null;
+
+ for(let z=-1;z<=1;z++)for(let x=-1;x<=1;x++){
+  const mesh=new THREE.Mesh(new THREE.BufferGeometry(),currentMaterial);
+  mesh.position.set(x*size,0,z*size);
+  mesh.visible=false;
+  mesh.receiveShadow=true;
+  mesh.castShadow=false;
+  mesh.userData.chunkCenter={x:x*size,z:z*size};
+  mesh.userData.lodSegments=0;
+  group.add(mesh);
+  chunks.push(mesh);
+ }
+
+ const cancelBuilds=()=>{
+  buildGeneration++;
+  buildQueue.length=0;
+  if(activeBuild){activeBuild.job.dispose();activeBuild=null;}
  };
+
+ const scheduleLayout=(centerX,centerZ)=>{
+  cancelBuilds();
+  const descriptors=createTerrainLodLayout(currentSegments,size,centerX,centerZ);
+  const used=new Set();
+  const unmatched=[];
+  for(const descriptor of descriptors){
+   const mesh=chunks.find(candidate=>{
+    const center=candidate.userData.chunkCenter;
+    return !used.has(candidate)&&center&&center.x===descriptor.centerX&&center.z===descriptor.centerZ;
+   });
+   if(mesh){descriptor.mesh=mesh;used.add(mesh);}
+   else unmatched.push(descriptor);
+  }
+  const free=chunks.filter(mesh=>!used.has(mesh));
+  for(const descriptor of unmatched){
+   const mesh=free.shift();
+   if(!mesh)throw new Error("Terrain chunk pool exhausted while scheduling LOD layout");
+   descriptor.mesh=mesh;
+   used.add(mesh);
+  }
+  buildQueue=descriptors.filter(descriptor=>{
+   const center=descriptor.mesh.userData.chunkCenter;
+   const isCurrent=descriptor.mesh.visible&&center&&center.x===descriptor.centerX&&center.z===descriptor.centerZ&&descriptor.mesh.userData.lodSegments===descriptor.segments;
+   return !isCurrent;
+  });
+  group.userData.pendingTerrainBuilds=buildQueue.length+(activeBuild?1:0);
+ };
+
+ const processBuilds=()=>{
+  if(!activeBuild&&!buildQueue.length)return;
+  const started=performance.now();
+  while(performance.now()-started<TERRAIN_BUILD_BUDGET_MS){
+   if(!activeBuild){
+    const descriptor=buildQueue.shift();
+    if(!descriptor)break;
+    activeBuild={
+     generation:buildGeneration,
+     descriptor,
+     job:createTerrainChunkBuildJob(THREE,w,{
+      centerX:descriptor.centerX,centerZ:descriptor.centerZ,size,segments:descriptor.segments
+     })
+    };
+   }
+   const task=activeBuild;
+   const complete=task.job.step(TERRAIN_BUILD_WORK_QUANTUM);
+   if(!complete)continue;
+   activeBuild=null;
+   if(task.generation!==buildGeneration){task.job.dispose();continue;}
+   const mesh=task.descriptor.mesh,oldGeometry=mesh.geometry;
+   mesh.geometry=task.job.geometry;
+   mesh.position.set(task.descriptor.centerX,0,task.descriptor.centerZ);
+   mesh.material=currentMaterial;
+   mesh.userData.chunkCenter={x:task.descriptor.centerX,z:task.descriptor.centerZ};
+   mesh.userData.lodSegments=task.descriptor.segments;
+   mesh.visible=true;
+   disposeResourcesIfUnreferenced([oldGeometry],scene);
+  }
+  group.userData.pendingTerrainBuilds=buildQueue.length+(activeBuild?1:0);
+ };
+
+ group.userData.setGeometryQuality=quality=>{
+  const nextSegments=getTerrainBaseSegments(quality);
+  if(nextSegments===currentSegments)return;
+  currentSegments=nextSegments;
+  scheduleLayout(baseX,baseZ);
+ };
+ group.userData.updateAround=(x,z)=>{
+  const bx=Math.round(x/size)*size,bz=Math.round(z/size)*size;
+  if(bx===baseX&&bz===baseZ)return;
+  baseX=bx;baseZ=bz;
+  scheduleLayout(baseX,baseZ);
+ };
+ group.userData.processBuilds=processBuilds;
+ group.userData.cancelPendingBuilds=cancelBuilds;
+
  group.userData.refreshPbr=(quality=settings.quality)=>{
   if(currentMaps&&currentQuality===quality)return Promise.resolve();
   if(pendingPromise&&pendingQuality===quality)return pendingPromise;
@@ -520,7 +510,7 @@ function createTerrain(w){
   return task;
  };
  group.userData.cancelPendingPbr=()=>{generation++;pendingQuality=null;};
- let baseX=0,baseZ=0;group.userData.updateAround=(x,z)=>{const bx=Math.floor(x/size)*size,bz=Math.floor(z/size)*size;if(bx===baseX&&bz===baseZ)return;baseX=bx;baseZ=bz;let i=0;for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)updateTerrainChunk(chunks[i++],w,bx+dx*size,bz+dz*size);};
+ scheduleLayout(0,0);
  void group.userData.refreshPbr(settings.quality);
  return group;
 }
@@ -949,7 +939,8 @@ function disposeWorld(){
  animatedObjects=[];worldShaders=[];
  if(!worldRoot){biomeDetail=null;terrain=null;return;}
  biomeDetail?.userData?.disposeTextures?.();
- terrain?.userData?.cancelPendingPbr?.();
+ terrain?.userData?.cancelPendingBuilds?.();
+  terrain?.userData?.cancelPendingPbr?.();
  disposeObject3DResources(worldRoot);
  worldRoot=null;terrain=null;biomeDetail=null;
 }
@@ -1377,6 +1368,7 @@ function animate(){
  const measureDebug=RUN_OPTIONS.debug,updateStartedAt=measureDebug?performance.now():0;
  if(travelSequence){updateInterplanetaryTravel(dt);if(travelSequence)animateExosuitFlight(dt);}else moveRobot(dt);updateCamera(dt);if(skyShell)skyShell.position.copy(camera.position);
  if(terrain?.userData?.updateAround)terrain.userData.updateAround(avatar.group.position.x,avatar.group.position.z);
+  terrain?.userData?.processBuilds?.();
  if(sunLight){sunLight.position.set(avatar.group.position.x-180,avatar.group.position.y+260,avatar.group.position.z-130);sunLight.target.position.copy(avatar.group.position);sunLight.target.updateMatrixWorld();}
  if(!flightMode&&(keys.has("KeyW")||keys.has("KeyA")||keys.has("KeyS")||keys.has("KeyD"))){stepAccumulator+=dt;if(stepAccumulator>.46){stepAccumulator=0;AudioSystem.playSfx("step");}}
  if(!travelSequence&&elapsed>eventNextAt)triggerWorldEvent();
