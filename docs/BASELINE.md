@@ -14,7 +14,7 @@ URL mẫu: `/play/?debug=1&seed=1&bookmark=<bookmark>`
 | Chế độ cửa sổ | Toàn màn hình theo người đo; ảnh chụp vẫn hiển thị Chrome UI và taskbar |
 | Quality | Balanced |
 | Seed | 1 |
-| Kích thước file ảnh | 1456 × 819 px |
+| **Độ phân giải ảnh gốc** | **1920 × 1080 px** |
 | Render scale | 62% DPR |
 | Renderer pixel ratio | 0.78 |
 | GPU / driver | Chưa được cung cấp |
@@ -35,15 +35,17 @@ Các giá trị dưới đây được chép nguyên văn từ runtime debug ove
 
 **Lưu ý về near:** ảnh near được chụp khi sự kiện *Aurora Bloom* đang hoạt động. Giữ lại ảnh/số liệu làm bằng chứng lượt đo này, nhưng không dùng làm đối chứng ngang hàng với bốn bookmark còn lại cho tới khi retake trong điều kiện sự kiện tương đương.
 
-## Ảnh chụp
+## Ảnh chụp và nơi lưu
 
-Năm ảnh gốc đã được đính kèm theo yêu cầu trong cuộc hội thoại (theo đúng thứ tự: mid, far, orbit, aether, near). Connector GitHub hiện dùng trong phiên này chỉ tạo được text/base64 blob qua Git data API và không có thao tác nhận file nhị phân trực tiếp từ các tệp đính kèm; do đó **ảnh chưa được commit vào `docs/baseline/`**. Để tránh tạo Markdown image links bị hỏng, phần binary đang được giữ riêng trong bộ đính kèm. Tên file đích đề xuất:
+Archive `baseline-images-phase1a.zip` được cung cấp kèm cuộc hội thoại có đủ năm ảnh PNG gốc; đã kiểm tra từng ảnh có độ phân giải **1920 × 1080 px** (RGB). Ảnh nhị phân **chưa được commit vào Git**. Chủ dự án sẽ upload thủ công vào `docs/baseline/` bằng đúng tên đích:
 
-- `baseline-mid.png`
-- `baseline-far.png`
-- `baseline-orbit.png`
-- `baseline-aether.png`
-- `baseline-near-aurora-bloom.png`
+- `docs/baseline/baseline-mid.png`
+- `docs/baseline/baseline-far.png`
+- `docs/baseline/baseline-orbit.png`
+- `docs/baseline/baseline-aether.png`
+- `docs/baseline/baseline-near-aurora-bloom.png`
+
+Tên file trong archive hiện tại lần lượt gồm `baseline-mid.png`, `baseline-far.png`, `baseline-orbit.png`, `baseline-aether.png` và `baseline-near-aurora-bloom.png`; không đổi nội dung ảnh khi upload. Bảng số liệu và điều kiện chụp nằm trong tài liệu này. Không dùng ảnh near làm đối chứng cùng điều kiện vì Aurora Bloom đang hoạt động.
 
 ## Diễn giải và giới hạn
 
@@ -56,7 +58,6 @@ Năm ảnh gốc đã được đính kèm theo yêu cầu trong cuộc hội th
 ## Kết quả baseline hiện tại
 
 Baseline 1A được cố định trực tiếp bằng SHA commit `5234c56eea34c81ef6adfff3ee2f0964dfb2070d` (không yêu cầu Git tag); tài liệu này cùng ảnh và số liệu là hồ sơ baseline. Có số đo trình duyệt thật cho cả năm bookmark, nhưng `near` cần retake để đồng nhất trạng thái event và metadata CPU/GPU còn thiếu. Giữ nguyên deployment được build từ commit `5234c56`; không redeploy hoặc thay đổi URL baseline đó.
-
 
 ## Bổ sung instrumentation CPU/GPU (Phase 1A)
 
