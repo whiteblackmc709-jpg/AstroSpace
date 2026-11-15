@@ -51,6 +51,7 @@ jobs:
           npm install --prefix "$THREE_ROOT" --no-save --no-package-lock --ignore-scripts --no-audit --no-fund three@0.170.0
           ASTROSPACE_THREE_ROOT="$THREE_ROOT" node tests/test_planetary_three_runtime.mjs
           ASTROSPACE_THREE_ROOT="$THREE_ROOT" node tests/test_resource_lifecycle.mjs
+          ASTROSPACE_THREE_ROOT="$THREE_ROOT" node tests/test_terrain_lod.mjs
       - name: Run browser gameplay contracts
         run: |
           node tests/test_campaign.mjs
