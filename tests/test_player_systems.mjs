@@ -21,7 +21,14 @@ assert.match(game, /function updatePerformanceGovernor\(/, "The renderer must ad
 assert.match(game, /for\(const o of animatedObjects\)/, "Per-frame world traversal must be removed.");
 assert.match(game, /createPlanetaryDetail\(THREE,next/, "Every planet must receive its biome-specific detail layer.");
 assert.match(game, /biomeDetail=biomeDetail\.userData\.setQuality\(quality\)/, "Biome detail density must follow the active quality profile.");
-assert.match(game, /updateTerrainVertexColors\(/, "Terrain chunks must carry slope and biome-aware surface variation.");
+const terrainSampling = readFileSync(new URL("../play/terrain-sampling.js", import.meta.url), "utf8");
+const terrainLod = readFileSync(new URL("../play/terrain-lod.js", import.meta.url), "utf8");
+assert.match(game, /import \{ terrainHeight \} from "\.\/terrain-sampling\.js"/,
+  "Gameplay and terrain generation must share the canonical height sampler.");
+assert.match(terrainSampling, /export function terrainColorVariation\(/,
+  "Terrain sampling must preserve slope and biome-aware surface variation.");
+assert.match(terrainLod, /terrainColorVariation\(world,centerX\+x,centerZ\+z,y,normalY/,
+  "Every terrain LOD must use the same biome surface variation function.");
 assert.match(game, /uHorizon.*uZenith.*uAccent/s, "The sky shader must inherit each planet's atmospheric palette.");
 assert.match(game, /worldShaders/, "Layered aurora ribbons must animate without scene-wide traversal.");
 assert.ok(readFileSync(new URL("../assets/planetary-detail.js", import.meta.url), "utf8").includes("planetaryDetailBudget"),
