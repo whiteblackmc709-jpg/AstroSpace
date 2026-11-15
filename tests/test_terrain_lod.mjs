@@ -99,11 +99,11 @@ function buildChunk(world,descriptor){
  const geometry=job.geometry;
  assert.ok(geometry.isBufferGeometry);
  assert.ok(geometry.attributes.uv,"every terrain LOD geometry must provide UVs for its sampled maps");
- const positions=geometry.attributes.position;
+ const positionAttribute=geometry.attributes.position;
  const uvs=geometry.attributes.uv;
- assert.equal(uvs.count,positions.count,"terrain UV count must match every surface and skirt vertex");
- for(let vertex=0;vertex<positions.count;vertex++){
-  const x=positions.getX(vertex),z=positions.getZ(vertex);
+ assert.equal(uvs.count,positionAttribute.count,"terrain UV count must match every surface and skirt vertex");
+ for(let vertex=0;vertex<positionAttribute.count;vertex++){
+  const x=positionAttribute.getX(vertex),z=positionAttribute.getZ(vertex);
   const expectedU=(x+TERRAIN_CHUNK_SIZE*.5)/TERRAIN_CHUNK_SIZE;
   const expectedV=1-(z+TERRAIN_CHUNK_SIZE*.5)/TERRAIN_CHUNK_SIZE;
   const actualU=uvs.getX(vertex),actualV=uvs.getY(vertex);
