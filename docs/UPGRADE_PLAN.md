@@ -162,3 +162,17 @@ Commit `5d58b9f` adds debug-only JS update and JS renderer-submit timing plus op
 ### Phase 1C completion record — 2026-11-15
 
 Ba mục Phase 1C đã hoàn tất theo ba commit riêng biệt trên branch này. Regression mới gồm QualityProfile mapping/storage compatibility, hot-path allocation contract và real Three.js resource ownership (shared geometry/material/texture, LOD replacement, world disposal idempotence). Full GitHub Actions workflow, real Three.js 0.170.0 scenes, browser/gameplay contracts, CMake build và CTest đều PASS. Default world rendering settings và game-world visuals không thay đổi. Dừng tại đây; Phase 2A chưa bắt đầu và vẫn yêu cầu owner approval.
+
+### Phase 2A-1 execution record — terrain distance LOD (2026-11-15)
+
+Owner authorization opened only Phase 2A-1; Phase 2A-2 and later visual work remain gated.
+
+- Design was committed first in [PHASE_2A1_DESIGN.md](PHASE_2A1_DESIGN.md).
+- Extracted the existing deterministic terrain height/color sampling into `play/terrain-sampling.js`; the height formula remains unchanged and gameplay grounding still calls this single `terrainHeight(x, z, world)` source.
+- Added `play/terrain-lod.js`: nine chunk positions, 1 near / 4 middle / 4 far distance rings, legacy segment budgets retained for performance/balanced/cinematic/4k/8k, perimeter skirts, and incremental mesh generation advanced under a per-frame work budget.
+- The active near ring keeps the legacy full segment count; middle/far use 1/4 and 1/8 segment ratios. Balanced's expected terrain total is 136,192 triangles including skirts (design estimate, not a browser measurement).
+- Existing geometry remains visible until replacement is ready. Chunk jobs are cancelled on layout/quality changes and world teardown; completed geometry is released through reference-aware disposal.
+- No lighting, sky, PBR maps/material definitions, vegetation, water, post-processing, gameplay IDs, save key, controls, audio mixer, Planet Forge homepage, or routes were intentionally changed.
+- Tests added: five legacy quality ring budgets, 1/4/4 ring layout, real Three.js 0.170.0 geometry build, exact common-edge height samples, skirt/index/bounds validity, scratch-color reuse, and runtime scheduler/teardown integration contracts.
+- Latest full CI is expected to remain the sign-off gate for the final cache-busted preview commit. Browser P95/FPS on the same physical device, visual crack/flicker review, and five owner screenshots remain **not yet verified**. Do not treat triangle estimates or CI timing as measured browser performance.
+- Stop after preview delivery and owner review of near/mid/far/orbit/aether at seed 1. Do not begin Phase 2A-2 until explicitly approved.
