@@ -4,20 +4,22 @@ import {
   createGpuTimer,
   createSeededRandom,
   parsePlayDebugOptions,
-  PLAY_DEBUG_BOOKMARKS
+  PLAY_DEBUG_BOOKMARKS,
+  PLAY_DEBUG_OFF_FLAGS,
+  collectTriangleBreakdown
 } from "../play/debug-harness.js";
 
 const enabled = parsePlayDebugOptions("?debug=1&seed=7319&bookmark=orbit");
-assert.deepEqual(enabled, { debug: true, seed: 7319, bookmark: "orbit" });
+assert.deepEqual(enabled, { debug: true, seed: 7319, bookmark: "orbit", off: [] });
 
 const disabled = parsePlayDebugOptions("");
-assert.deepEqual(disabled, { debug: false, seed: null, bookmark: null });
+assert.deepEqual(disabled, { debug: false, seed: null, bookmark: null, off: [] });
 
 const invalid = parsePlayDebugOptions("?debug=true&seed=not-a-number&bookmark=unknown");
-assert.deepEqual(invalid, { debug: false, seed: null, bookmark: null });
+assert.deepEqual(invalid, { debug: false, seed: null, bookmark: null, off: [] });
 
 const negative = parsePlayDebugOptions("?debug=1&seed=-17&bookmark=aether");
-assert.deepEqual(negative, { debug: true, seed: -17, bookmark: "aether" });
+assert.deepEqual(negative, { debug: true, seed: -17, bookmark: "aether", off: [] });
 
 assert.deepEqual(Object.keys(PLAY_DEBUG_BOOKMARKS), ["near", "mid", "far", "orbit", "aether"]);
 for (const bookmark of Object.values(PLAY_DEBUG_BOOKMARKS)) {
@@ -26,6 +28,46 @@ for (const bookmark of Object.values(PLAY_DEBUG_BOOKMARKS)) {
 }
 assert.equal(PLAY_DEBUG_BOOKMARKS.aether.flight, true);
 assert.ok(PLAY_DEBUG_BOOKMARKS.aether.altitude > 0);
+assert.deepEqual(PLAY_DEBUG_OFF_FLAGS, ["shadows", "terrainpbr", "grass", "foliage", "river", "post"]);
+assert.deepEqual(
+  parsePlayDebugOptions("?debug=1&off=shadows,terrainpbr&off=grass&off=foliage,river&off=post&off=unknown").off,
+  ["shadows", "terrainpbr", "grass", "foliage", "river", "post"],
+  "off flags accept comma-separated or repeated query parameters, deduplicate, and ignore unknown names"
+);
+assert.deepEqual(
+  parsePlayDebugOptions("?off=grass").off,
+  ["grass"],
+  "render isolation flags are usable independently of the visible debug overlay"
+);
+
+// Group counts include regular and instanced mesh triangle costs and ignore hidden branches.
+const makeMesh = (count, instances = 1) => ({
+  isMesh: true,
+  isInstancedMesh: instances !== 1,
+  count: instances,
+  visible: true,
+  userData: {},
+  geometry: { attributes: { position: { count } }, drawRange: { start: 0, count: Infinity }, groups: [] },
+  children: []
+});
+const diagnosticScene = {
+  visible: true,
+  userData: {},
+  children: [
+    { visible: true, userData: { renderGroup: "terrain" }, children: [makeMesh(303)] },
+    { visible: true, userData: { renderGroup: "foliage" }, children: [makeMesh(90, 12)] },
+    { visible: true, userData: { renderGroup: "grass" }, children: [makeMesh(60)] },
+    { visible: false, userData: { renderGroup: "rocks" }, children: [makeMesh(300)] },
+    { visible: true, userData: { renderGroup: "character" }, children: [makeMesh(12)] }
+  ]
+};
+const grouped = collectTriangleBreakdown(diagnosticScene);
+assert.equal(grouped.terrain, 101, "terrain triangles use geometry vertex/index counts / 3");
+assert.equal(grouped.foliage, 360, "instanced geometry triangles multiply by active instance count");
+assert.equal(grouped.grass, 20);
+assert.equal(grouped.rocks, 0, "hidden render groups are excluded");
+assert.equal(grouped.character, 4);
+assert.equal(grouped.total, 485, "group breakdown total is the sum of tagged visible geometry");
 
 const randomA = createSeededRandom(7319);
 const randomB = createSeededRandom(7319);
