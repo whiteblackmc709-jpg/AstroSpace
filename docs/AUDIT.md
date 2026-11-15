@@ -58,3 +58,10 @@ CI run 42368609466 trên base HEAD kết thúc success: JavaScript syntax, HTML/
 ## Các điểm bảo toàn
 
 Không rewrite; giữ Three.js, campaign/task IDs, SAVE_KEY, progression gates, Aether Flight, touch mappings, audio mixer API/buses, Planet Forge, account/social adapters và routes. Không copy asset/IP bên thứ ba. Không coi SwiftShader metrics là GPU thật. Các điểm số workstream trong audit chi tiết được hiểu là mức độ hoàn thiện theo source, không phải điểm cảm quan screenshot.
+
+
+## Phase 1C hot-path allocation inventory
+
+The animation path now reuses one `Vector3` scratch for camera position and one `Color` scratch for interplanetary transit. `moveRobot()` queries the persistent keyboard/touch Sets directly instead of constructing a merged Set and array; `nearestInteractable()` scans mission and secret arrays separately rather than creating a concatenated array. No explicit `new THREE.Matrix4()` was present in the camera/movement/travel update path; the `Object3D` instance dummies continue to reuse their own matrices during world construction.
+
+Remaining periodic/UI allocations: the objective HUD builds its small task-list markup with `tasks.map()` on its 8-frame UI refresh cadence, and the opt-in debug overlay creates/sorts a short sample array every 250 ms. These are not allocations in the per-frame movement/camera/travel hot path and remain candidates for a separate profiling-led pass.

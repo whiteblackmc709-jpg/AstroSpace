@@ -22,12 +22,13 @@ const freshSave=()=>({regionCursor:0,taskProgress:{},completedRegions:[],complet
 
 function loadSave(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return freshSave();const p=JSON.parse(raw),b=freshSave();return {...b,...p,taskProgress:p.taskProgress&&typeof p.taskProgress==="object"?p.taskProgress:{},completedRegions:Array.isArray(p.completedRegions)?p.completedRegions:[],completedPlanets:Array.isArray(p.completedPlanets)?p.completedPlanets:[],bonusFound:Array.isArray(p.bonusFound)?p.bonusFound:[],unlockedWorlds:Array.isArray(p.unlockedWorlds)?p.unlockedWorlds:["kharon"],regionCursor:clamp(Number(p.regionCursor)||0,0,REGIONS.length-1),character:{...DEFAULT_CHARACTER,...(p.character&&typeof p.character==="object"?p.character:{})}};}catch{return freshSave();}}
 const save=loadSave();
-let THREE,scene,camera,renderer,clock,avatar,worldRoot,terrain,biomeDetail=null,skyShell=null,skyDomeMaterial=null,sunLight=null,fillLight=null,frontFillLight=null,worldGlow=null,transitRoot=null,travelSequence=null,relays=[],missionEntities=[],secretEntities=[],activeEventEntities=[],worldShaders=[],debugOverlay=null,currentRegion=seedRegion(REGIONS[Math.min(save.regionCursor,REGIONS.length-1)]),currentWorld=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];
+let THREE,scene,camera,cameraDesiredPosition=null,travelSpaceColor=null,renderer,clock,avatar,worldRoot,terrain,biomeDetail=null,skyShell=null,skyDomeMaterial=null,sunLight=null,fillLight=null,frontFillLight=null,worldGlow=null,transitRoot=null,travelSequence=null,relays=[],missionEntities=[],secretEntities=[],activeEventEntities=[],worldShaders=[],debugOverlay=null,currentRegion=seedRegion(REGIONS[Math.min(save.regionCursor,REGIONS.length-1)]),currentWorld=WORLDS.find(w=>w.id===currentRegion.planetId)||WORLDS[0];
 const INITIAL_QUALITY=(()=>{try{return normalizeLegacyQuality(JSON.parse(localStorage.getItem("astrospace-settings-v2")||"{}").quality);}catch{return "balanced";}})();
 let accountSession=null,accountConfigured=false,cloudSaveTimer=null,stepAccumulator=0,eventNextAt=55,eventUntil=0,activeEvent="",audioStarted=false,uiSystems=null,environmentTarget=null,settings={quality:INITIAL_QUALITY,qualityProfile:resolveQualityProfile(INITIAL_QUALITY).id,fov:58,sensitivity:1,invert:false,reducedMotion:false,music:.24,ambience:.22,sfx:.55,subtitles:true,hud:true};
 let yaw=0,pitch=.13,cameraDistance=17.5,dragging=false,lastX=0,lastY=0,flightMode=false,velocityY=0,horizontalFlightSpeed=0,jumpVelocity=0,elapsed=0,frame=0;
 let animatedObjects=[],adaptiveScale=1,performanceElapsed=0,performanceFrames=0,lastFps=60,graphicsProfile={pixelRatio:1.32,shadowSize:1536,maxPixels:4800000,exposure:1.08};
 const keys=new Set(),touchKeys=new Set();
+const isInputDown=code=>keys.has(code)||touchKeys.has(code);
 
 (async function boot(){
  const loader=$("loading-screen");
@@ -158,7 +159,7 @@ function startCompatibilityScene(error,stage){
 
 function initGame(){
  scene=new THREE.Scene();scene.background=new THREE.Color(currentWorld.sky);scene.fog=new THREE.Fog(currentWorld.fog,220,3700);
- camera=new THREE.PerspectiveCamera(settings.fov,1,.1,8500);
+ camera=new THREE.PerspectiveCamera(settings.fov,1,.1,8500);cameraDesiredPosition=new THREE.Vector3();travelSpaceColor=new THREE.Color("#020711");
  renderer=createAdaptiveRenderer($("game-canvas"));
  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.1;
  try{environmentTarget=createCinematicEnvironment(THREE,renderer);if(environmentTarget)scene.environment=environmentTarget.texture;}
@@ -1161,7 +1162,7 @@ function finishTravelLanding(){
  toast("TOUCHDOWN // "+currentWorld.name.toUpperCase()+" FRONTIER");
 }
 function updateInterplanetaryTravel(dt){
- const tr=travelSequence;if(!tr)return;tr.time+=dt;const t=tr.time,spaceColor=new THREE.Color("#020711");
+ const tr=travelSequence;if(!tr)return;tr.time+=dt;const t=tr.time,spaceColor=travelSpaceColor;
  if(tr.samePlanet){
   if(t<2.2){
    tr.phase="regional-ascent";const p=smooth(0,2.2,t);avatar.group.position.y=tr.startY+280*p+Math.sin(t*4)*2;avatar.group.rotation.x=lerp(-.12,-.2,p);
@@ -1203,12 +1204,12 @@ function advanceRegion(){
 function jump(){if(!flightMode&&Math.abs(jumpVelocity)<.01)jumpVelocity=8.4;}
 function getGround(x,z){return terrainHeight(x,z,currentWorld);}
 function moveRobot(dt){
- const active=new Set([...keys,...touchKeys]),forward=(active.has("KeyW")||active.has("ArrowUp")?1:0)-(active.has("KeyS")||active.has("ArrowDown")?1:0),strafe=(active.has("KeyD")||active.has("ArrowRight")?1:0)-(active.has("KeyA")||active.has("ArrowLeft")?1:0),running=active.has("ShiftLeft")||active.has("ShiftRight");
+ const forward=(isInputDown("KeyW")||isInputDown("ArrowUp")?1:0)-(isInputDown("KeyS")||isInputDown("ArrowDown")?1:0),strafe=(isInputDown("KeyD")||isInputDown("ArrowRight")?1:0)-(isInputDown("KeyA")||isInputDown("ArrowLeft")?1:0),running=isInputDown("ShiftLeft")||isInputDown("ShiftRight");
  const speed=running?12.2:6.1,dx=Math.sin(yaw),dz=Math.cos(yaw),rx=Math.cos(yaw),rz=-Math.sin(yaw);
  let mx=dx*forward+rx*strafe,mz=dz*forward+rz*strafe,mag=Math.hypot(mx,mz);if(mag>1){mx/=mag;mz/=mag;}
  if(flightMode){
   const boost=running?2.45:1;horizontalFlightSpeed=mag*speed*boost;avatar.group.position.x+=mx*speed*boost*dt;avatar.group.position.z+=mz*speed*boost*dt;
-  if(active.has("Space"))velocityY=Math.min(22,velocityY+24*dt);else if(active.has("ControlLeft")||active.has("ControlRight"))velocityY=Math.max(-18,velocityY-24*dt);else velocityY=lerp(velocityY,0,dt*1.1);
+  if(isInputDown("Space"))velocityY=Math.min(22,velocityY+24*dt);else if(isInputDown("ControlLeft")||isInputDown("ControlRight"))velocityY=Math.max(-18,velocityY-24*dt);else velocityY=lerp(velocityY,0,dt*1.1);
   avatar.group.position.y+=velocityY*dt;avatar.group.position.y=Math.max(getGround(avatar.group.position.x,avatar.group.position.z)+2.2,avatar.group.position.y);
  }else{
   horizontalFlightSpeed=0;avatar.group.position.x+=mx*speed*dt;avatar.group.position.z+=mz*speed*dt;const ground=getGround(avatar.group.position.x,avatar.group.position.z);
@@ -1232,13 +1233,22 @@ function animateExosuitFlight(dt){
 }
 function updateCamera(dt){
  const d=travelSequence?cameraDistance:flightMode?23:cameraDistance;
- const desired=new THREE.Vector3(avatar.group.position.x-Math.sin(yaw)*d,avatar.group.position.y+8.2+pitch*7,avatar.group.position.z-Math.cos(yaw)*d);
- camera.position.lerp(desired,settings.reducedMotion?1:1-Math.pow(.001,dt));
+ cameraDesiredPosition.set(avatar.group.position.x-Math.sin(yaw)*d,avatar.group.position.y+8.2+pitch*7,avatar.group.position.z-Math.cos(yaw)*d);
+ camera.position.lerp(cameraDesiredPosition,settings.reducedMotion?1:1-Math.pow(.001,dt));
  camera.lookAt(avatar.group.position.x,avatar.group.position.y+1.75,avatar.group.position.z);
 }
 function nearestInteractable(){
  let best=null,bestD=Infinity;
- for(const e of [...missionEntities,...secretEntities]){if(!e.userData.active)continue;const d=avatar.group.position.distanceTo(e.position),limit=e.userData.role==="boss"?42:14;if(d<limit&&d<bestD){best=e;bestD=d;}}
+ for(let i=0;i<missionEntities.length;i++){
+  const e=missionEntities[i];if(!e.userData.active)continue;
+  const d=avatar.group.position.distanceTo(e.position),limit=e.userData.role==="boss"?42:14;
+  if(d<limit&&d<bestD){best=e;bestD=d;}
+ }
+ for(let i=0;i<secretEntities.length;i++){
+  const e=secretEntities[i];if(!e.userData.active)continue;
+  const d=avatar.group.position.distanceTo(e.position),limit=e.userData.role==="boss"?42:14;
+  if(d<limit&&d<bestD){best=e;bestD=d;}
+ }
  return best;
 }
 function interact(){

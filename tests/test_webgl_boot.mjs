@@ -19,7 +19,7 @@ assert.match(source, /initialising the planetary scene/,
   "boot should record the stage for useful startup diagnostics");
 assert.match(source, /startCompatibilityScene\(error,bootStage\)/,
   "the error panel must show the actual startup failure instead of always blaming WebGL");
-assert.match(html, /play\.js\?v=phase-1a-timing-r1/,
+assert.match(html, /play\.js\?v=phase-1c-hot-path-r1/,
   "the repaired game module must use a new cache-busting version");
 
 
@@ -42,5 +42,5 @@ assert.match(source, /const renderSubmitMs=measureDebug\?performance\.now\(\)-re
   "debug timing must measure only the JavaScript renderer.render submission call");
 assert.match(source, /debugOverlay\?\.beginGpuFrame\(\)[\s\S]*?renderer\.render\(scene,camera\)[\s\S]*?debugOverlay\?\.endGpuFrame\(\)/,
   "GPU timer query must bracket the renderer submission");
-assert.match(html, /play\.js\?v=phase-1a-timing-r1/,
+assert.match(html, /play\.js\?v=phase-1c-hot-path-r1/,
   "timing instrumentation must use a new runtime cache-busting version");
