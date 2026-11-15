@@ -19,7 +19,7 @@ assert.match(source, /initialising the planetary scene/,
   "boot should record the stage for useful startup diagnostics");
 assert.match(source, /startCompatibilityScene\(error,bootStage\)/,
   "the error panel must show the actual startup failure instead of always blaming WebGL");
-assert.match(html, /play\\.js\\?v=phase-1a-timing-r1/,
+assert.match(html, /play\.js\?v=phase-1a-timing-r1/,
   "the repaired game module must use a new cache-busting version");
 
 
