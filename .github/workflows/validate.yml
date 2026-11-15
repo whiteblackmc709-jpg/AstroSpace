@@ -22,6 +22,8 @@ jobs:
           node --check assets/planetary-detail.js
           node --check assets/three-resource-lifecycle.js
           node --check play/quality-profile.js
+          node --check play/terrain-sampling.js
+          node --check play/terrain-lod.js
           node --check play/play.js
           node --check play/social-ui.js
           node --check play/auth.js
