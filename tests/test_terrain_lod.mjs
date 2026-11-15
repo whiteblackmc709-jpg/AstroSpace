@@ -104,8 +104,8 @@ function buildChunk(world,descriptor){
  assert.equal(uvs.count,positions.count,"terrain UV count must match every surface and skirt vertex");
  for(let vertex=0;vertex<positions.count;vertex++){
   const x=positions.getX(vertex),z=positions.getZ(vertex);
-  const expectedU=(x+descriptor.size*.5)/descriptor.size;
-  const expectedV=1-(z+descriptor.size*.5)/descriptor.size;
+  const expectedU=(x+TERRAIN_CHUNK_SIZE*.5)/TERRAIN_CHUNK_SIZE;
+  const expectedV=1-(z+TERRAIN_CHUNK_SIZE*.5)/TERRAIN_CHUNK_SIZE;
   const actualU=uvs.getX(vertex),actualV=uvs.getY(vertex);
   assert.ok(actualU>=0&&actualU<=1&&actualV>=0&&actualV<=1,
    descriptor.ring+" UVs must remain in [0,1], including skirt vertices");
