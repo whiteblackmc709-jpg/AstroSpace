@@ -19,7 +19,7 @@ assert.match(source, /initialising the planetary scene/,
   "boot should record the stage for useful startup diagnostics");
 assert.match(source, /startCompatibilityScene\(error,bootStage\)/,
   "the error panel must show the actual startup failure instead of always blaming WebGL");
-assert.match(html, /play\.js\?v=phase-1a-three-scope-fix-r1/,
+assert.match(html, /play\\.js\\?v=phase-1a-timing-r1/,
   "the repaired game module must use a new cache-busting version");
 
 
@@ -35,3 +35,12 @@ assert.match(html, /3D startup failed\. Diagnostic details will appear here\./,
   "static fallback copy must not assume a WebGL failure");
 
 console.log("WebGL boot contract: PASS — startup error name/stack, conditional WebGL guidance and cache bust.");
+
+assert.match(source, /const updateMs=measureDebug\?performance\.now\(\)-updateStartedAt:null/,
+  "debug timing must measure JavaScript update work without affecting normal frames");
+assert.match(source, /const renderSubmitMs=measureDebug\?performance\.now\(\)-renderStartedAt:null/,
+  "debug timing must measure only the JavaScript renderer.render submission call");
+assert.match(source, /debugOverlay\?\.beginGpuFrame\(\)[\s\S]*?renderer\.render\(scene,camera\)[\s\S]*?debugOverlay\?\.endGpuFrame\(\)/,
+  "GPU timer query must bracket the renderer submission");
+assert.match(html, /play\.js\?v=phase-1a-timing-r1/,
+  "timing instrumentation must use a new runtime cache-busting version");

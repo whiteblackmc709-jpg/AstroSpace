@@ -5,7 +5,7 @@ import * as SocialSystem from "./social.js";
 import { mountSocialUI } from "./social-ui.js";
 import { createPlanetPbrMaps, createPlanetPbrMaterial, createCinematicEnvironment } from "../assets/pbr-surfaces.js?v=toolbar-boot-fix-r1";
 import { createPlanetaryDetail } from "../assets/planetary-detail.js?v=orient-cylinder-three-scope-r1";
-import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS } from "./debug-harness.js?v=phase-1a-r1";
+import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS } from "./debug-harness.js?v=phase-1a-timing-r1";
 const THREE_URL="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
 const SAVE_KEY="astrospace-campaign-v2";
 const RUN_OPTIONS=parsePlayDebugOptions(window.location.search);
@@ -1365,6 +1365,7 @@ function animate(){
  requestAnimationFrame(animate);
  if(document.hidden){clock.getDelta();return;}
  const rawDt=Math.min(clock.getDelta(),.1),dt=Math.min(rawDt,.035);elapsed+=dt;frame++;
+ const measureDebug=RUN_OPTIONS.debug,updateStartedAt=measureDebug?performance.now():0;
  if(travelSequence){updateInterplanetaryTravel(dt);if(travelSequence)animateExosuitFlight(dt);}else moveRobot(dt);updateCamera(dt);if(skyShell)skyShell.position.copy(camera.position);
  if(terrain?.userData?.updateAround)terrain.userData.updateAround(avatar.group.position.x,avatar.group.position.z);
  if(sunLight){sunLight.position.set(avatar.group.position.x-180,avatar.group.position.y+260,avatar.group.position.z-130);sunLight.target.position.copy(avatar.group.position);sunLight.target.updateMatrixWorld();}
@@ -1378,5 +1379,11 @@ function animate(){
  if(frame%8===0){updatePrompt();updateWorldUI();updateFlightReadout();}
  if(frame%600===0)persist();
  updatePerformanceGovernor(rawDt);
- renderer.render(scene,camera);debugOverlay?.update(rawDt);
+ const updateMs=measureDebug?performance.now()-updateStartedAt:null;
+ debugOverlay?.beginGpuFrame();
+ const renderStartedAt=measureDebug?performance.now():0;
+ renderer.render(scene,camera);
+ const renderSubmitMs=measureDebug?performance.now()-renderStartedAt:null;
+ debugOverlay?.endGpuFrame();
+ debugOverlay?.update(rawDt,updateMs,renderSubmitMs);
 }

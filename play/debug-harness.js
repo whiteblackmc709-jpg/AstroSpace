@@ -36,6 +36,82 @@ export function createSeededRandom(seed) {
   };
 }
 
+export function createGpuTimer(renderer) {
+  let gl, extension, query;
+  try {
+    gl = renderer?.getContext?.();
+    extension = gl?.getExtension?.("EXT_disjoint_timer_query_webgl2");
+    if (!extension || typeof gl.createQuery !== "function" ||
+        typeof gl.beginQuery !== "function" || typeof gl.endQuery !== "function" ||
+        typeof gl.getQueryParameter !== "function") {
+      return { beginFrame() {}, endFrame() {}, read() { return null; }, dispose() {} };
+    }
+    query = gl.createQuery();
+    if (!query) return { beginFrame() {}, endFrame() {}, read() { return null; }, dispose() {} };
+  } catch {
+    return { beginFrame() {}, endFrame() {}, read() { return null; }, dispose() {} };
+  }
+
+  let active = false;
+  let pending = false;
+  let latestMilliseconds = null;
+  let failed = false;
+
+  function poll() {
+    if (!pending || failed) return;
+    try {
+      if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) return;
+      const disjoint = gl.getParameter(extension.GPU_DISJOINT_EXT);
+      const nanoseconds = gl.getQueryParameter(query, gl.QUERY_RESULT);
+      latestMilliseconds = disjoint || !Number.isFinite(nanoseconds)
+        ? null
+        : nanoseconds / 1e6;
+      pending = false;
+    } catch {
+      latestMilliseconds = null;
+      pending = false;
+      failed = true;
+    }
+  }
+
+  return {
+    beginFrame() {
+      poll();
+      if (failed || pending || active) return;
+      try {
+        gl.beginQuery(extension.TIME_ELAPSED_EXT, query);
+        active = true;
+      } catch {
+        failed = true;
+      }
+    },
+    endFrame() {
+      if (!active) return;
+      try {
+        gl.endQuery(extension.TIME_ELAPSED_EXT);
+        active = false;
+        pending = true;
+      } catch {
+        active = false;
+        failed = true;
+        latestMilliseconds = null;
+      }
+    },
+    read() {
+      poll();
+      return latestMilliseconds;
+    },
+    dispose() {
+      if (active) {
+        try { gl.endQuery(extension.TIME_ELAPSED_EXT); } catch {}
+        active = false;
+      }
+      try { gl.deleteQuery?.(query); } catch {}
+      pending = false;
+    }
+  };
+}
+
 export function createPlayDebugOverlay({ renderer, options, getQuality = () => "unknown" } = {}) {
   if (!options?.debug || !renderer || typeof document === "undefined") return null;
 
@@ -65,11 +141,17 @@ export function createPlayDebugOverlay({ renderer, options, getQuality = () => "
 
   document.body.appendChild(panel);
   const frameSamples = new Float32Array(120);
+  const gpuTimer = createGpuTimer(renderer);
   let sampleCount = 0;
   let sampleIndex = 0;
   let lastPaint = 0;
+  let latestUpdateMs = null;
+  let latestRenderSubmitMs = null;
 
-  function update(deltaSeconds) {
+  function update(deltaSeconds, updateMs = null, renderSubmitMs = null) {
+    gpuTimer.read();
+    latestUpdateMs = Number.isFinite(updateMs) ? updateMs : null;
+    latestRenderSubmitMs = Number.isFinite(renderSubmitMs) ? renderSubmitMs : null;
     if (Number.isFinite(deltaSeconds) && deltaSeconds > 0) {
       frameSamples[sampleIndex] = deltaSeconds;
       sampleIndex = (sampleIndex + 1) % frameSamples.length;
@@ -106,6 +188,9 @@ export function createPlayDebugOverlay({ renderer, options, getQuality = () => "
       "FPS: " + (fps ? fps.toFixed(1) : "--") + " | FRAME: " + (averageMs ? averageMs.toFixed(2) : "--") + " ms | P95: " + (p95Ms ? p95Ms.toFixed(2) : "--") + " ms",
       "CALLS: " + (render.calls ?? "--") + " | TRIANGLES: " + (render.triangles ?? "--"),
       "GEOMETRIES: " + (memory.geometries ?? "--") + " | TEXTURES: " + (memory.textures ?? "--"),
+      "JS UPDATE: " + (latestUpdateMs === null ? "n/a" : latestUpdateMs.toFixed(2) + " ms") +
+        " | JS RENDER SUBMIT: " + (latestRenderSubmitMs === null ? "n/a" : latestRenderSubmitMs.toFixed(2) + " ms"),
+      "GPU: " + (gpuTimer.read() === null ? "n/a" : gpuTimer.read().toFixed(2) + " ms (timer query)"),
       "RENDER SCALE: " + renderScale + "% DPR | PIXEL RATIO: " + pixelRatio.toFixed(2),
       "QUALITY: " + String(getQuality()).toUpperCase(),
       "SEED: " + seedLabel + " | BOOKMARK: " + bookmarkLabel,
@@ -114,8 +199,15 @@ export function createPlayDebugOverlay({ renderer, options, getQuality = () => "
   }
 
   return {
+    beginGpuFrame() {
+      gpuTimer.beginFrame();
+    },
+    endGpuFrame() {
+      gpuTimer.endFrame();
+    },
     update,
     dispose() {
+      gpuTimer.dispose();
       panel.remove();
     }
   };
