@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PLANETS } from "../play/region-data.js";
 import { terrainHeight, terrainColorVariation } from "../play/terrain-sampling.js";
+import { createPlanetPbrMaterial } from "../assets/pbr-surfaces.js";
 import {
  createTerrainChunkBuildJob,
  createTerrainLodLayout,
@@ -97,6 +98,20 @@ function buildChunk(world,descriptor){
  assert.ok(steps>1,"terrain generation must be sliced across multiple work steps");
  const geometry=job.geometry;
  assert.ok(geometry.isBufferGeometry);
+ assert.ok(geometry.attributes.uv,"every terrain LOD geometry must provide UVs for its sampled maps");
+ const positions=geometry.attributes.position;
+ const uvs=geometry.attributes.uv;
+ assert.equal(uvs.count,positions.count,"terrain UV count must match every surface and skirt vertex");
+ for(let vertex=0;vertex<positions.count;vertex++){
+  const x=positions.getX(vertex),z=positions.getZ(vertex);
+  const expectedU=(x+descriptor.size*.5)/descriptor.size;
+  const expectedV=1-(z+descriptor.size*.5)/descriptor.size;
+  const actualU=uvs.getX(vertex),actualV=uvs.getY(vertex);
+  assert.ok(actualU>=0&&actualU<=1&&actualV>=0&&actualV<=1,
+   descriptor.ring+" UVs must remain in [0,1], including skirt vertices");
+  assert.ok(Math.abs(actualU-expectedU)<1e-6&&Math.abs(actualV-expectedV)<1e-6,
+   descriptor.ring+" UVs must match normalized PlaneGeometry coordinates for every vertex");
+ }
  assert.ok(geometry.boundingSphere);
  assert.ok(geometry.boundingBox);
  assert.equal(geometry.attributes.position.count,(descriptor.segments+1)**2+8*(descriptor.segments+1));
@@ -120,6 +135,22 @@ function buildChunk(world,descriptor){
  assert.ok(Array.from(indices).every(index=>index<geometry.attributes.position.count),"all chunk indices stay inside their geometry");
  return {job,geometry,descriptor};
 }
+
+const pbrMaps={
+ albedo:new THREE.Texture(),
+ normal:new THREE.Texture(),
+ roughness:new THREE.Texture(),
+ heightMap:new THREE.Texture()
+};
+const terrainPbr=createPlanetPbrMaterial(THREE,pbrMaps,PLANETS[0],{surface:"terrain"});
+assert.ok(terrainPbr.map,"terrain PBR material must require the albedo map");
+assert.ok(terrainPbr.normalMap,"terrain PBR material must require the normal map");
+assert.ok(terrainPbr.roughnessMap,"terrain PBR material must require the roughness map");
+assert.ok(terrainPbr.bumpMap,"terrain PBR material must require the bump map");
+assert.ok(terrainPbr.map&&terrainPbr.normalMap&&terrainPbr.roughnessMap&&terrainPbr.bumpMap,
+ "any geometry assigned the production terrain PBR material must supply UV coordinates");
+terrainPbr.dispose();
+Object.values(pbrMaps).forEach(texture=>texture.dispose());
 
 const world=PLANETS[0];
 const nearDescriptor=layout.find(item=>item.ring==="near");
@@ -148,4 +179,4 @@ near.job.dispose();
 eastMiddle.job.dispose();
 southeastFar.job.dispose();
 
-console.log("Terrain distance LOD: PASS — all five legacy quality budgets, <=50% Balanced triangle budget, shared height sampler, incremental Three.js 0.170.0 mesh builds, skirt closure and exact cross-ring edge samples.");
+console.log("Terrain distance LOD: PASS — all five quality budgets, UV mapping/material contract on every ring and skirt vertex, shared height sampler, incremental Three.js 0.170.0 mesh builds, skirt closure and exact cross-ring edge samples.");
