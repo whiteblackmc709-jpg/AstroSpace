@@ -35,7 +35,7 @@ assert.match(game, /createTerrainChunkBuildJob\(THREE,w/,
   "Terrain geometry must be produced by the incremental chunk builder.");
 assert.match(game, /TERRAIN_BUILD_BUDGET_MS/,
   "Terrain rebuild work must obey a bounded per-frame budget.");
-assert.match(game, /terrain\.userData\.processBuilds\?\.\(\)/,
+assert.match(game, /terrain\?\.userData\?\.processBuilds\?\.\(\)/,
   "The frame loop must advance the terrain build queue.");
 assert.match(game, /terrain\?\.userData\?\.cancelPendingBuilds\?\.\(\)/,
   "World teardown must cancel partial terrain rebuild jobs.");
