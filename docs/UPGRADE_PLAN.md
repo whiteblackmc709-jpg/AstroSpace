@@ -147,3 +147,8 @@ Schema/config JSON, canonical ID migration, Workers/OffscreenCanvas và modulari
 ## 10. Kết quả baseline 1A ngày 2026-11-15
 
 Xem [BASELINE.md](BASELINE.md). Năm ảnh gốc được gửi trong cuộc hội thoại; tệp nhị phân chưa được ghi vào Git do giới hạn upload của connector hiện tại. Bookmark `near` đang có Aurora Bloom nên chưa đồng điều kiện. CPU/GPU timings chưa có; không bắt đầu 2A trước khi có duyệt.
+
+
+### Instrumentation timing follow-up
+
+Commit `5d58b9f` adds debug-only JS update and JS renderer-submit timing plus optional asynchronous WebGL2 timer query. Commit `793b518` moves the debug panel below the HUD. Commit `6a09ce5` fixes the cache-bust contract test. These are measurement/UI-only changes; they do not change game world geometry, materials, lighting or default quality.

@@ -56,3 +56,14 @@ Năm ảnh gốc đã được đính kèm theo yêu cầu trong cuộc hội th
 ## Kết quả baseline hiện tại
 
 Baseline 1A đã có số đo trình duyệt thật cho cả năm bookmark, nhưng `near` cần retake để đồng nhất trạng thái event và metadata CPU/GPU còn thiếu. Giữ nguyên deployment được build từ commit `5234c56`; không redeploy hoặc thay đổi URL baseline đó.
+
+
+## Bổ sung instrumentation CPU/GPU (Phase 1A)
+
+Debug overlay trong các commit tiếp theo của nhánh đo đạc hiển thị:
+
+- **JS UPDATE (ms):** thời gian CPU-side của JavaScript từ đầu phần update trong `animate()` tới trước `renderer.render()`. Bao gồm các bước movement/camera, terrain update, event/animation, UI cadence và governor trong frame đó.
+- **JS RENDER SUBMIT (ms):** thời gian CPU-side nằm bên trong lời gọi `renderer.render(scene, camera)`. Đây là thời gian JS/driver submit render work, không phải GPU execution time.
+- **GPU (ms):** chỉ có số khi WebGL2 hỗ trợ `EXT_disjoint_timer_query_webgl2`; đọc kết quả bất đồng bộ, không chờ/block frame. Mẫu disjoint bị loại; khi API/extension không có hoặc chưa có mẫu hợp lệ thì overlay hiển thị `n/a`.
+
+Hai số JS là thời lượng thực thi trên luồng JavaScript, không phải VRAM, GPU utilization hoặc thời gian GPU thực thi. Chỉ dòng GPU timer query mới là thời gian GPU, và vẫn có giới hạn/phạm vi do timer-query extension cung cấp. Đo debug chỉ bật với `?debug=1`; không gọi `performance.now()` trong vòng lặp bình thường khi debug tắt.
