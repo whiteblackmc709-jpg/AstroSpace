@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PLANETS } from "../play/region-data.js";
-import { terrainHeight } from "../play/terrain-sampling.js";
+import { terrainHeight, terrainColorVariation } from "../play/terrain-sampling.js";
 import {
  createTerrainChunkBuildJob,
  createTerrainLodLayout,
@@ -20,6 +20,11 @@ const packageJson=JSON.parse(readFileSync(join(dependencyRoot,"node_modules/thre
 assert.equal(packageJson.version,"0.170.0","Terrain mesh regression must use the production Three.js version");
 const THREE=dependencyRequire("three");
 assert.equal(THREE.REVISION,"170");
+
+const colorScratch=[0,0,0];
+const colorResult=terrainColorVariation(PLANETS[0],120,-90,7,.94,colorScratch);
+assert.equal(colorResult,colorScratch,"terrain color sampling must reuse the caller's scratch array");
+assert.ok(colorScratch.every(Number.isFinite),"scratch color channels must remain finite");
 
 const expectedQuality={
  performance:[128,32,16],
