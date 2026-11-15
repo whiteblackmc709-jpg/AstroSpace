@@ -23,31 +23,24 @@ assert.match(game, /createPlanetaryDetail\(THREE,next/, "Every planet must recei
 assert.match(game, /biomeDetail=biomeDetail\.userData\.setQuality\(quality\)/, "Biome detail density must follow the active quality profile.");
 const detailSource = readFileSync(new URL("../assets/planetary-detail.js", import.meta.url), "utf8");
 const debugHarness = readFileSync(new URL("../play/debug-harness.js", import.meta.url), "utf8");
-assert.match(game, /PLAY_DEBUG_OFF_FLAGS|RUN_OPTIONS\\.off/,
-  "The play runtime must support explicit debug render isolation flags.");
-assert.match(game, /RUN_OPTIONS\\.off\\.includes\\("terrainpbr"\\)/,
-  "terrainpbr isolation must bypass terrain PBR material/map generation.");
-assert.match(game, /RUN_OPTIONS\\.off\\.includes\\("shadows"\\)/,
-  "shadow isolation must disable the renderer shadow map.");
-assert.match(game, /renderGroup==="grass"&&off\\.includes\\("grass"\\)/,
-  "grass isolation must hide all tagged grass render groups.");
-assert.match(game, /renderGroup==="foliage"&&off\\.includes\\("foliage"\\)/,
-  "foliage isolation must hide all tagged foliage render groups.");
-assert.match(game, /renderGroup==="river"&&off\\.includes\\("river"\\)/,
-  "river isolation must hide the tagged river mesh.");
-assert.match(game, /getTriangleBreakdown:\\(\\)=>collectTriangleBreakdown\\(scene\\)/,
-  "The overlay must show grouped scene triangle estimates.");
-assert.match(game, /renderGroup="terrain"/,
-  "Terrain chunks must be identified in the triangle breakdown.");
-assert.match(game, /renderGroup="character"/,
-  "The player model must be identified in the triangle breakdown.");
-assert.match(game, /renderGroup="sky"/,
-  "Sky geometry must be identified in the triangle breakdown.");
-assert.match(detailSource, /grassGroup\\.userData\\.renderGroup="grass"/,
+for (const contract of [
+  'RUN_OPTIONS.off.includes("terrainpbr")',
+  'RUN_OPTIONS.off.includes("shadows")',
+  'renderGroup==="grass"&&off.includes("grass")',
+  'renderGroup==="foliage"&&off.includes("foliage")',
+  'renderGroup==="river"&&off.includes("river")',
+  'getTriangleBreakdown:()=>collectTriangleBreakdown(scene)',
+  'group.userData.renderGroup="terrain"',
+  'avatar.group.userData.renderGroup="character"',
+  'skyShell.userData.renderGroup="sky"'
+]) {
+  assert.ok(game.includes(contract), "Missing runtime render isolation/triangle contract: " + contract);
+}
+assert.ok(detailSource.includes('grassGroup.userData.renderGroup="grass"'),
   "Biome grass/ferns/flowers need their own profiling group.");
-assert.match(detailSource, /foliage\\.userData\\.renderGroup="foliage"/,
+assert.ok(detailSource.includes('foliage.userData.renderGroup="foliage"'),
   "Biome canopy meshes need a distinct foliage profiling group.");
-assert.match(debugHarness, /scene-visible estimate/,
+assert.ok(debugHarness.includes("scene-visible estimate"),
   "Grouped triangle numbers must be labelled as a scene-visible estimate, not exact renderer submissions.");
 const terrainSampling = readFileSync(new URL("../play/terrain-sampling.js", import.meta.url), "utf8");
 const terrainLod = readFileSync(new URL("../play/terrain-lod.js", import.meta.url), "utf8");
