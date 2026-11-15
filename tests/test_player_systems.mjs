@@ -29,6 +29,18 @@ assert.match(terrainSampling, /export function terrainColorVariation\(/,
   "Terrain sampling must preserve slope and biome-aware surface variation.");
 assert.match(terrainLod, /terrainColorVariation\(world,centerX\+x,centerZ\+z,y,normalY/,
   "Every terrain LOD must use the same biome surface variation function.");
+assert.match(game, /createTerrainLodLayout\(currentSegments,size,centerX,centerZ\)/,
+  "Terrain rebuilds must assign distance rings around the active player chunk.");
+assert.match(game, /createTerrainChunkBuildJob\(THREE,w/,
+  "Terrain geometry must be produced by the incremental chunk builder.");
+assert.match(game, /TERRAIN_BUILD_BUDGET_MS/,
+  "Terrain rebuild work must obey a bounded per-frame budget.");
+assert.match(game, /terrain\.userData\.processBuilds\?\.\(\)/,
+  "The frame loop must advance the terrain build queue.");
+assert.match(game, /terrain\?\.userData\?\.cancelPendingBuilds\?\.\(\)/,
+  "World teardown must cancel partial terrain rebuild jobs.");
+assert.match(game, /function getGround\(x,z\)\{return terrainHeight\(x,z,currentWorld\);\}/,
+  "Character grounding must continue to use only the canonical terrainHeight sampler.");
 assert.match(game, /uHorizon.*uZenith.*uAccent/s, "The sky shader must inherit each planet's atmospheric palette.");
 assert.match(game, /worldShaders/, "Layered aurora ribbons must animate without scene-wide traversal.");
 assert.ok(readFileSync(new URL("../assets/planetary-detail.js", import.meta.url), "utf8").includes("planetaryDetailBudget"),
