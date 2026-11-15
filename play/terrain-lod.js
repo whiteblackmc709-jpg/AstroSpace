@@ -89,6 +89,8 @@ export function createTerrainChunkBuildJob(THREE,world,{
 
  const half=size*.5,step=size/segments;
  let phase=0,cursor=0,finalized=false,disposed=false;
+ const tintScratch=[1,1,1];
+ let minX=Infinity,minY=Infinity,minZ=Infinity,maxX=-Infinity,maxY=-Infinity,maxZ=-Infinity,maxRadiusSquared=0;
 
  function writeIndices(unit,indexOffset){
   if(unit<surfaceCellCount){
@@ -115,12 +117,17 @@ export function createTerrainChunkBuildJob(THREE,world,{
   }
  }
 
+ function trackBounds(x,y,z){
+  minX=Math.min(minX,x);minY=Math.min(minY,y);minZ=Math.min(minZ,z);
+  maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);maxZ=Math.max(maxZ,z);
+  maxRadiusSquared=Math.max(maxRadiusSquared,x*x+y*y+z*z);
+ }
+
  function sampleSurfaceVertex(vertex){
   const row=Math.floor(vertex/stride),column=vertex-row*stride,k=vertex*3;
-  const x=-half+column*step,z=-half+row*step;
-  positions[k]=x;
-  positions[k+1]=terrainHeight(centerX+x,centerZ+z,world);
-  positions[k+2]=z;
+  const x=-half+column*step,z=-half+row*step,y=terrainHeight(centerX+x,centerZ+z,world);
+  positions[k]=x;positions[k+1]=y;positions[k+2]=z;
+  trackBounds(x,y,z);
  }
 
  function accumulateSurfaceNormal(triangle){
@@ -140,8 +147,8 @@ export function createTerrainChunkBuildJob(THREE,world,{
   const nx=normals[k],ny=normals[k+1],nz=normals[k+2],length=Math.hypot(nx,ny,nz)||1;
   const normalX=nx/length,normalY=ny/length,normalZ=nz/length;
   normals[k]=normalX;normals[k+1]=normalY;normals[k+2]=normalZ;
-  const tint=terrainColorVariation(world,centerX+x,centerZ+z,y,normalY);
-  colors[k]=tint[0];colors[k+1]=tint[1];colors[k+2]=tint[2];
+  terrainColorVariation(world,centerX+x,centerZ+z,y,normalY,tintScratch);
+  colors[k]=tintScratch[0];colors[k+1]=tintScratch[1];colors[k+2]=tintScratch[2];
  }
 
  function fillSkirtVertex(vertex){
@@ -157,6 +164,7 @@ export function createTerrainChunkBuildJob(THREE,world,{
   else if(side===2){normals[destination]=0;normals[destination+1]=0;normals[destination+2]=-1;}
   else{normals[destination]=0;normals[destination+1]=0;normals[destination+2]=1;}
   colors[destination]=colors[source];colors[destination+1]=colors[source+1];colors[destination+2]=colors[source+2];
+  trackBounds(positions[destination],positions[destination+1],positions[destination+2]);
  }
 
  function finalize(){
@@ -165,8 +173,12 @@ export function createTerrainChunkBuildJob(THREE,world,{
   normalAttribute.needsUpdate=true;
   colorAttribute.needsUpdate=true;
   geometry.index.needsUpdate=true;
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
+  geometry.boundingBox=new THREE.Box3(
+   new THREE.Vector3(minX,minY,minZ),
+   new THREE.Vector3(maxX,maxY,maxZ)
+  );
+  // Origin-centred sphere is conservative and avoids an O(vertex-count) final scan.
+  geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(0,0,0),Math.sqrt(maxRadiusSquared));
   finalized=true;
  }
 
