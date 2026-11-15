@@ -171,8 +171,12 @@ export function createPlanetaryDetail(THREE,world,{
   material.map=maps.albedo;material.roughnessMap=maps.roughness;
   material.bumpMap=maps.heightMap;material.bumpScale=bumpScale;material.needsUpdate=true;return material;
  };
- const ground=new THREE.Group(),foliage=new THREE.Group(),floaters=new THREE.Group();
- root.add(ground,foliage,floaters);
+ const ground=new THREE.Group(),foliage=new THREE.Group(),floaters=new THREE.Group(),grassGroup=new THREE.Group();
+ ground.userData.renderGroup="rocks";
+ foliage.userData.renderGroup="foliage";
+ floaters.userData.renderGroup="other";
+ grassGroup.userData.renderGroup="grass";
+ root.add(ground,foliage,floaters,grassGroup);
  const dummy=new THREE.Object3D();
 
  // High-frequency geology: one instanced mesh for large boulders and a second for field rubble.
@@ -239,7 +243,7 @@ export function createPlanetaryDetail(THREE,world,{
    }
   }
   finish(trunks);finish(branches);finish(leaves);finish(crowns);
-  const blade=instance(THREE,bladeGeometry(THREE),new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.98,side:THREE.DoubleSide,vertexColors:true}),budget.forestGrass,ground);
+  const blade=instance(THREE,bladeGeometry(THREE),new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.98,side:THREE.DoubleSide,vertexColors:true}),budget.forestGrass,grassGroup);
   const grassColors=["#39734a","#4b8c50","#76a85b","#a9b96e","#2c6847"].map(c=>new THREE.Color(c));
   for(let i=0;i<budget.forestGrass;i++){
    const patch=i%37,pa=seeded(patch+600,seed)*Math.PI*2,pr=145+seeded(patch+620,seed)*820;
@@ -250,7 +254,7 @@ export function createPlanetaryDetail(THREE,world,{
   }
   finish(blade);
   const fernGeo=leafGeometry(THREE);
-  const ferns=instance(THREE,fernGeo,new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.9,side:THREE.DoubleSide,vertexColors:true}),budget.forestFerns*7,ground);
+  const ferns=instance(THREE,fernGeo,new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.9,side:THREE.DoubleSide,vertexColors:true}),budget.forestFerns*7,grassGroup);
   let fi=0;
   for(let i=0;i<budget.forestFerns;i++){
    const a=seeded(i+820,seed)*Math.PI*2,r=70+seeded(i+840,seed)*900,x=Math.cos(a)*r,z=Math.sin(a)*r,y=terrainHeight(x+originX,z+originZ,world);
@@ -261,7 +265,7 @@ export function createPlanetaryDetail(THREE,world,{
    }
   }
   finish(ferns);
-  const flowerGeo=new THREE.SphereGeometry(.34,10,8),flowers=instance(THREE,flowerGeo,new THREE.MeshStandardMaterial({color:"#dfffe2",emissive:"#73d5a0",emissiveIntensity:.24,roughness:.42}),budget.forestFlowers,ground);
+  const flowerGeo=new THREE.SphereGeometry(.34,10,8),flowers=instance(THREE,flowerGeo,new THREE.MeshStandardMaterial({color:"#dfffe2",emissive:"#73d5a0",emissiveIntensity:.24,roughness:.42}),budget.forestFlowers,grassGroup);
   for(let i=0;i<budget.forestFlowers;i++){
    const a=seeded(i+930,seed)*Math.PI*2,r=80+seeded(i+950,seed)*880,x=Math.cos(a)*r,z=Math.sin(a)*r,y=terrainHeight(x+originX,z+originZ,world),sc=.42+seeded(i+970,seed)*.95;
    place(THREE,flowers,i,dummy,x,y+sc*.45,z,sc*.7,sc*1.25,sc*.7,0,seeded(i+980,seed)*6.28,0);
