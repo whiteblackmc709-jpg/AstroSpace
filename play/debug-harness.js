@@ -121,8 +121,9 @@ export function createPlayDebugOverlay({ renderer, options, getQuality = () => "
   panel.setAttribute("aria-label", "AstroSpace renderer measurements");
   panel.style.cssText = [
     "position:fixed",
-    "top:10px",
+    "top:auto",
     "right:10px",
+    "bottom:88px",
     "z-index:99999",
     "max-width:min(390px,calc(100vw - 20px))",
     "margin:0",
@@ -191,6 +192,7 @@ export function createPlayDebugOverlay({ renderer, options, getQuality = () => "
       "JS UPDATE: " + (latestUpdateMs === null ? "n/a" : latestUpdateMs.toFixed(2) + " ms") +
         " | JS RENDER SUBMIT: " + (latestRenderSubmitMs === null ? "n/a" : latestRenderSubmitMs.toFixed(2) + " ms"),
       "GPU: " + (gpuTimer.read() === null ? "n/a" : gpuTimer.read().toFixed(2) + " ms (timer query)"),
+      "JS timings are CPU-side; GPU time requires a supported timer query.",
       "RENDER SCALE: " + renderScale + "% DPR | PIXEL RATIO: " + pixelRatio.toFixed(2),
       "QUALITY: " + String(getQuality()).toUpperCase(),
       "SEED: " + seedLabel + " | BOOKMARK: " + bookmarkLabel,

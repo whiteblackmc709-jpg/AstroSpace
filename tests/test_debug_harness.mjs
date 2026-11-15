@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import {
   createGpuTimer,
@@ -89,3 +90,9 @@ assert.equal(unsupportedTimer.read(), null, "unsupported GPU timer query must gr
 unsupportedTimer.dispose();
 
 console.log("Debug harness contract: PASS — query parsing, five stable bookmarks and deterministic event RNG.");
+
+const debugSource = readFileSync(new URL("../play/debug-harness.js", import.meta.url), "utf8");
+assert.match(debugSource, /"top:auto"/, "runtime debug overlay must not remain pinned to the upper-right");
+assert.match(debugSource, /"bottom:88px"/, "runtime debug overlay must move below the world-title area");
+assert.match(debugSource, /JS timings are CPU-side; GPU time requires a supported timer query\./,
+  "the overlay must distinguish JavaScript CPU timings from GPU timer-query results");
