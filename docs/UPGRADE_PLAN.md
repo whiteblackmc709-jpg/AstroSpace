@@ -34,12 +34,12 @@ Schema JSON, canonical ID migration, legacy data migration, Web Workers/Offscree
 - Không đổi SAVE_KEY, task IDs, controls, audio, event timing hoặc gameplay behavior mặc định.
 - Sau commit này, dừng để chủ dự án mở game, chụp 5 bookmark và gửi số liệu/device metadata làm baseline chính thức.
 
-### 1C — Phần nhẹ (baseline đã nhận; triển khai sau khi tag baseline được xác nhận)
+### 1C — Phần nhẹ (đã hoàn tất; baseline cố định bằng commit SHA)
 
-- QualityProfile adapter cho legacy quality values; mapping phải giữ đúng pixel ratio, max pixel budget, shadow size, exposure và profile đang lưu, tương thích `astrospace-settings-v2`.
-- Tái sử dụng scratch Vector3/Matrix4/Color trong update path, không đổi kết quả camera/movement; ưu tiên `updateCamera()`, `moveRobot()` và các hot path đã xác nhận.
-- Bảo đảm chunk/world dispose geometry/material/texture đúng ownership, idempotent và không dispose resource dùng chung còn tham chiếu giữa chunk/world.
-- Không đổi governor hoặc chất lượng hình ảnh mặc định trong 1C. Baseline đã được gửi; baseline được cố định trực tiếp bằng commit SHA `5234c56eea34c81ef6adfff3ee2f0964dfb2070d` cùng ảnh/số liệu tại `docs/BASELINE.md`; không cần Git tag để tiếp tục.
+- QualityProfile adapter: `performance → Low`, `balanced → Medium`, `cinematic → High`, `4k/8k → Ultra`. Giữ nguyên legacy quality string (bao gồm phân biệt 4K và 8K) trong `astrospace-settings-v2`, vì các mức đó vẫn quyết định pixel ratio, max pixel budget, shadow size, exposure, terrain segments, biome/PBR và foliage budgets.
+- Tái sử dụng scratch `Vector3` trong `updateCamera()` và `Color` trong `updateInterplanetaryTravel()`; `moveRobot()` query hai input Set trực tiếp thay vì tạo Set/array mới; `nearestInteractable()` quét hai mảng riêng thay vì tạo merged array. Không có `new THREE.Matrix4()` trong animation path; giữ nguyên ma trận do các `Object3D` dummy sở hữu và tái sử dụng khi dựng InstancedMesh.
+- Chuẩn hóa chunk/world/biome detail/transit disposal bằng scene-scope reference checks; geometry/material/texture dùng chung chỉ được dispose sau tham chiếu cuối cùng; idempotent. Regression chạy với real Three.js 0.170.0.
+- Không đổi governor, camera/movement math, material, lighting, geometry, density hoặc chất lượng hình ảnh mặc định trong 1C. Baseline được cố định trực tiếp bằng commit SHA `5234c56eea34c81ef6adfff3ee2f0964dfb2070d` cùng ảnh/số liệu tại `docs/BASELINE.md`; không cần Git tag.
 
 ### Gate Phase 1
 
@@ -152,3 +152,13 @@ Xem [BASELINE.md](BASELINE.md). Năm ảnh gốc được gửi trong cuộc h�
 ### Instrumentation timing follow-up
 
 Commit `5d58b9f` adds debug-only JS update and JS renderer-submit timing plus optional asynchronous WebGL2 timer query. Commit `793b518` moves the debug panel below the HUD. Commit `6a09ce5` fixes the cache-bust contract test. These are measurement/UI-only changes; they do not change game world geometry, materials, lighting or default quality.
+
+
+### Phase 1C / allocation inventory
+
+`updateCamera()` previously allocated one `THREE.Vector3` per frame; `moveRobot()` created one `Set` and a temporary merged input array per frame; `nearestInteractable()` allocated one merged entity array per scan (currently called on the HUD prompt cadence). No explicit `new THREE.Matrix4()` was found in the animation/update path; the existing instanced-mesh `Object3D` dummies own and reuse their matrices during construction. Other `Color` creation sites are world/sky/geometry construction or event setup, not per-frame animation.
+
+
+### Phase 1C completion record — 2026-11-15
+
+Ba mục Phase 1C đã hoàn tất theo ba commit riêng biệt trên branch này. Regression mới gồm QualityProfile mapping/storage compatibility, hot-path allocation contract và real Three.js resource ownership (shared geometry/material/texture, LOD replacement, world disposal idempotence). Full GitHub Actions workflow, real Three.js 0.170.0 scenes, browser/gameplay contracts, CMake build và CTest đều PASS. Default world rendering settings và game-world visuals không thay đổi. Dừng tại đây; Phase 2A chưa bắt đầu và vẫn yêu cầu owner approval.

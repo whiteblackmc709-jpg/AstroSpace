@@ -1,9 +1,10 @@
 import { PLANETS, REGIONS, EVENT_NAMES } from "./region-data.js";
+import { disposeObject3DResources, disposeResourcesIfUnreferenced } from "../assets/three-resource-lifecycle.js?v=phase-1c-dispose-r1";
 import { normalizeLegacyQuality, resolveQualityProfile } from "./quality-profile.js?v=phase-1c-quality-profile-r1";
 import * as AudioSystem from "./audio.js";
 import * as AccountSystem from "./auth.js";
 import * as SocialSystem from "./social.js";
-import { mountSocialUI } from "./social-ui.js";
+import { mountSocialUI } from "./social-ui.js?v=phase-1c-quality-profile-r1";
 import { createPlanetPbrMaps, createPlanetPbrMaterial, createCinematicEnvironment } from "../assets/pbr-surfaces.js?v=toolbar-boot-fix-r1";
 import { createPlanetaryDetail } from "../assets/planetary-detail.js?v=orient-cylinder-three-scope-r1";
 import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS } from "./debug-harness.js?v=phase-1a-timing-r1";
@@ -480,7 +481,7 @@ function createTerrain(w){
    const replacement=createTerrainChunk(w,currentMaterial,center.x,center.z,size,nextSegments);
    mesh.geometry=replacement.geometry;
    replacement.geometry=oldGeometry;
-   replacement.geometry.dispose();
+   disposeResourcesIfUnreferenced([oldGeometry],scene);
    mesh.userData.chunkCenter={x:center.x,z:center.z};
   }
   currentSegments=nextSegments;
@@ -510,14 +511,15 @@ function createTerrain(w){
    chunks.forEach(mesh=>{mesh.material=nextMaterial;});
    const oldMaterial=currentMaterial,oldMaps=currentMaps;currentMaterial=nextMaterial;currentMaps=maps;currentQuality=quality;
    if(status)status.textContent="SURFACE MAPS // "+maps.width+"×"+maps.height+" // "+quality.toUpperCase()+" PROFILE";
-   oldMaterial?.dispose();oldMaps?.dispose();
+   const oldTextures=oldMaps?Object.values(oldMaps).filter(value=>value?.isTexture):[];
+   disposeResourcesIfUnreferenced([oldMaterial,...oldTextures],scene);
   })().finally(()=>{
    if(pendingPromise===task){pendingPromise=null;pendingQuality=null;}
   });
   pendingPromise=task;
   return task;
  };
- group.userData.disposePbr=()=>{generation++;currentMaps?.dispose();currentMaps=null;currentQuality=null;};
+ group.userData.cancelPendingPbr=()=>{generation++;pendingQuality=null;};
  let baseX=0,baseZ=0;group.userData.updateAround=(x,z)=>{const bx=Math.floor(x/size)*size,bz=Math.floor(z/size)*size;if(bx===baseX&&bz===baseZ)return;baseX=bx;baseZ=bz;let i=0;for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)updateTerrainChunk(chunks[i++],w,bx+dx*size,bz+dz*size);};
  void group.userData.refreshPbr(settings.quality);
  return group;
@@ -944,18 +946,12 @@ function regionState(task){return save.taskProgress[task.id]||(save.taskProgress
 function regionComplete(region=currentRegion){return region.tasks.every(t=>regionState(t).complete);}
 function regionPercent(region=currentRegion){return Math.round(region.tasks.filter(t=>regionState(t).complete).length/region.tasks.length*100);}
 function disposeWorld(){
- animatedObjects=[];biomeDetail?.userData?.disposeTextures?.();biomeDetail=null;worldShaders=[];
- if(!worldRoot)return;
- terrain?.userData?.disposePbr?.();scene.remove(worldRoot);
- const geometries=new Set(),materials=new Set();
- worldRoot.traverse(o=>{
-  if(o.geometry&&!geometries.has(o.geometry)){geometries.add(o.geometry);o.geometry.dispose();}
-  if(o.material){
-   const list=Array.isArray(o.material)?o.material:[o.material];
-   for(const material of list){if(material&&!materials.has(material)){materials.add(material);material.dispose();}}
-  }
- });
- worldRoot=null;terrain=null;
+ animatedObjects=[];worldShaders=[];
+ if(!worldRoot){biomeDetail=null;terrain=null;return;}
+ biomeDetail?.userData?.disposeTextures?.();
+ terrain?.userData?.cancelPendingPbr?.();
+ disposeObject3DResources(worldRoot);
+ worldRoot=null;terrain=null;biomeDetail=null;
 }
 function createMarker(task,role,index,total){
  const g=new THREE.Group(),accent=currentWorld.accent;
@@ -1131,8 +1127,8 @@ function makeTransitBackdrop(fromWorld,toWorld){
  travelSequence.sourcePlanet=source;travelSequence.destinationPlanet=destination;travelSequence.streaks=streaks;
 }
 function disposeTransitBackdrop(){
- if(!transitRoot)return;scene.remove(transitRoot);const geometries=new Set(),materials=new Set(),textures=new Set();
- transitRoot.traverse(o=>{if(o.geometry&&!geometries.has(o.geometry)){geometries.add(o.geometry);o.geometry.dispose();}const list=Array.isArray(o.material)?o.material:[o.material];for(const m of list){if(!m||materials.has(m))continue;materials.add(m);for(const v of Object.values(m)){if(v?.isTexture&&!textures.has(v)){textures.add(v);v.dispose();}}m.dispose();}});
+ if(!transitRoot)return;
+ disposeObject3DResources(transitRoot);
  transitRoot=null;
 }
 function beginPlayerFlight(destinationRegion){

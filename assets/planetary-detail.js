@@ -1,3 +1,4 @@
+import { disposeObject3DResources, disposeResourcesIfUnreferenced } from "./three-resource-lifecycle.js?v=phase-1c-dispose-r1";
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const fract=v=>v-Math.floor(v);
 const seeded=(i,seed=1)=>fract(Math.sin((i+1)*127.1+(seed+3)*311.7)*43758.5453123);
@@ -368,24 +369,23 @@ export function createPlanetaryDetail(THREE,world,{
  }
 
  root.userData.detailTextures=textureBundles;
- root.userData.disposeTextures=()=>{for(const maps of textureBundles)maps.dispose();textureBundles.length=0;};
+ root.userData.disposeTextures=()=>{
+  const textures=[];
+  for(const maps of textureBundles)for(const value of Object.values(maps))if(value?.isTexture)textures.push(value);
+  let scope=root;while(scope.parent)scope=scope.parent;
+  disposeResourcesIfUnreferenced(textures,scope,root);
+  textureBundles.length=0;
+ };
  root.userData.detailBudget=budget;
  root.userData.quality=quality;
  root.userData.setQuality=nextQuality=>{
   if(nextQuality===root.userData.quality)return root;
   const parent=root.parent;
-  root.userData.disposeTextures?.();
   const replacement=createPlanetaryDetail(THREE,world,{quality:nextQuality,originX,originZ,terrainHeight});
-  if(parent){parent.add(replacement);parent.remove(root);}
-  const geometries=new Set(),materials=new Set();
-  root.traverse(object=>{
-   if(object.geometry&&!geometries.has(object.geometry)){geometries.add(object.geometry);object.geometry.dispose();}
-   if(object.material){
-    const list=Array.isArray(object.material)?object.material:[object.material];
-    for(const material of list){if(material&&!materials.has(material)){materials.add(material);material.dispose();}}
-   }
-  });
-  root.clear();return replacement;
+  if(parent)parent.add(replacement);
+  root.userData.disposeTextures?.();
+  disposeObject3DResources(root);
+  return replacement;
  };
  root.userData.update=(time,dt)=>{
   foliage.rotation.z=kind===0?Math.sin(time*.28)*.003:0;

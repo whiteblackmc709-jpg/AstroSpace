@@ -39,7 +39,7 @@ World definitions bị trùng/khác phiên bản giữa play/region-data.js, ass
 - Cosmic events: play runtime chủ yếu sinh event shard markers; chưa có world-state mutation tương ứng.
 - Character: procedural robot, third-person movement, jump/flight; chưa thấy skeletal rig/IK.
 - Audio/UI: mixer, buses, HUD, settings, touch, save and social adapters hiện hữu; cần giữ compatibility.
-- Performance: có FPS readout/render-scale governor; thiếu renderer.info counters trong HUD, URL seed/bookmark và screenshot rig. updateCamera tạo Vector3 mỗi frame; moveRobot tạo Set mới cho mỗi update. disposeWorld đã traverse/dispose resource, terrain chunk recenter hiện sửa geometry tại chỗ.
+- Performance: có FPS readout/render-scale governor và baseline harness. Trước Phase 1C: updateCamera tạo Vector3 mỗi frame; moveRobot tạo Set + spread array mỗi update; nearestInteractable tạo merged array mỗi lần scan. Phase 1C chuyển camera sang scratch Vector3 dùng lại, tái sử dụng Color cho interplanetary flight, query hai input Set trực tiếp và quét hai entity arrays riêng. Không có explicit Matrix4 allocation trong animation path. Chunk recenter/LOD replacement và world/biome/transit disposal nay dùng scene-scope resource ownership checks để giữ tài nguyên còn được tham chiếu.
 
 ## Baseline / CI
 
@@ -60,8 +60,15 @@ CI run 42368609466 trên base HEAD kết thúc success: JavaScript syntax, HTML/
 Không rewrite; giữ Three.js, campaign/task IDs, SAVE_KEY, progression gates, Aether Flight, touch mappings, audio mixer API/buses, Planet Forge, account/social adapters và routes. Không copy asset/IP bên thứ ba. Không coi SwiftShader metrics là GPU thật. Các điểm số workstream trong audit chi tiết được hiểu là mức độ hoàn thiện theo source, không phải điểm cảm quan screenshot.
 
 
-## Phase 1C hot-path allocation inventory
+## Phase 1C — resource ownership follow-up
 
-The animation path now reuses one `Vector3` scratch for camera position and one `Color` scratch for interplanetary transit. `moveRobot()` queries the persistent keyboard/touch Sets directly instead of constructing a merged Set and array; `nearestInteractable()` scans mission and secret arrays separately rather than creating a concatenated array. No explicit `new THREE.Matrix4()` was present in the camera/movement/travel update path; the `Object3D` instance dummies continue to reuse their own matrices during world construction.
+Chunk/world cleanup now uses `assets/three-resource-lifecycle.js`. It gathers geometry, materials and textures from the removed tree, scans the containing scene for references outside that tree, and disposes only resources whose final in-scene reference has gone. Chunk LOD replacement and PBR material swaps use the same reference-aware disposal path. The biome detail replacement uses the same helper; cleanup is idempotent and deduplicates resources shared among meshes/chunks.
 
-Remaining periodic/UI allocations: the objective HUD builds its small task-list markup with `tasks.map()` on its 8-frame UI refresh cadence, and the opt-in debug overlay creates/sorts a short sample array every 250 ms. These are not allocations in the per-frame movement/camera/travel hot path and remain candidates for a separate profiling-led pass.
+
+## Phase 1C verification — 2026-11-15
+
+- QualityProfile: four canonical profiles map the five legacy tiers; `astrospace-settings-v2` retains the original legacy value so 4K and 8K keep separate rendering budgets.
+- Hot path: removed the per-frame camera Vector3, movement Set and input array; removed the periodic merged mission/secret array allocation. No explicit Matrix4 construction was present in the frame update path.
+- Disposal: scene-aware reference checking preserves shared resources until their final chunk/object reference is detached; tests cover geometry/material/texture and idempotent cleanup with real Three.js 0.170.0.
+- Full CI run 43685374420 completed successfully, including browser/gameplay contracts, all six no-WebGL Three.js scene initializations, resource lifecycle regression, CMake build and CTest.
+- No default world visual parameter was changed; Phase 2A has not started.

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { PLANETS } from "../play/region-data.js";
 import { createBiomeDetailMaps, createPlanetaryDetail } from "../assets/planetary-detail.js";
 import { createPlanetPbrMaps, createPlanetPbrMaterial } from "../assets/pbr-surfaces.js";
+import { disposeObject3DResources } from "../assets/three-resource-lifecycle.js";
 
 const dependencyRoot = process.env.ASTROSPACE_THREE_ROOT;
 assert.ok(dependencyRoot, "ASTROSPACE_THREE_ROOT must point to the temporary CI install");
@@ -20,22 +21,7 @@ const rendererWithoutWebGL = {capabilities:{maxTextureSize:1024,getMaxAnisotropy
 
 function disposeDetail(root) {
   root.userData.disposeTextures?.();
-  const geometries = new Set();
-  const materials = new Set();
-  root.traverse(object => {
-    if (object.geometry && !geometries.has(object.geometry)) {
-      geometries.add(object.geometry);
-      object.geometry.dispose();
-    }
-    const list = Array.isArray(object.material) ? object.material : [object.material];
-    for (const material of list) {
-      if (material && !materials.has(material)) {
-        materials.add(material);
-        material.dispose();
-      }
-    }
-  });
-  root.clear();
+  disposeObject3DResources(root);
 }
 
 for (const planet of PLANETS) {
