@@ -12,7 +12,7 @@ import * as SocialSystem from "./social.js";
 import { mountSocialUI } from "./social-ui.js?v=phase-1c-quality-profile-r1";
 import { createPlanetPbrMaps, createPlanetPbrMaterial, createCinematicEnvironment } from "../assets/pbr-surfaces.js?v=toolbar-boot-fix-r1";
 import { createPlanetaryDetail } from "../assets/planetary-detail.js?v=orient-cylinder-three-scope-r1";
-import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS } from "./debug-harness.js?v=phase-1a-timing-r1";
+import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS, collectTriangleBreakdown } from "./debug-harness.js?v=phase-1a-timing-r1";
 const THREE_URL="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
 const SAVE_KEY="astrospace-campaign-v2";
 const RUN_OPTIONS=parsePlayDebugOptions(window.location.search);
@@ -177,7 +177,7 @@ function initGame(){
  fillLight=new THREE.DirectionalLight(currentWorld.accent,1.52);fillLight.position.set(180,85,210);scene.add(fillLight);
  frontFillLight=new THREE.DirectionalLight(currentWorld.palette[3],.94);frontFillLight.position.set(-60,40,180);scene.add(frontFillLight);
  worldGlow=new THREE.PointLight(currentWorld.accent,16,310,2);worldGlow.position.set(0,45,0);scene.add(worldGlow);
- createSky();avatar=createRobot(normaliseCharacter(save.character));scene.add(avatar.group);buildWorld(currentWorld.id,false);bindUI();
+ createSky();avatar=createRobot(normaliseCharacter(save.character));avatar.group.userData.renderGroup="character";scene.add(avatar.group);buildWorld(currentWorld.id,false);bindUI();
  uiSystems=mountSocialUI({
   toast,
   getWorld:()=>currentWorld,
@@ -190,7 +190,7 @@ function initGame(){
  $("game-canvas").addEventListener("pointerdown",onPointerDown);window.addEventListener("pointermove",onPointerMove);window.addEventListener("pointerup",()=>dragging=false);
  $("game-canvas").addEventListener("wheel",e=>{e.preventDefault();if(!travelSequence)cameraDistance=clamp(cameraDistance+e.deltaY*.012,10,34);},{passive:false});
  $("begin-button").addEventListener("click",()=>{$("intro-overlay").hidden=true;save.introSeen=true;persist();toast("A.R.I.A. ONLINE // RESTORE THE THREE ANCIENT RELAYS");});
- updateUI();applyCameraBookmark();debugOverlay=createPlayDebugOverlay({renderer,options:RUN_OPTIONS,getQuality:()=>settings.quality});requestAnimationFrame(animate);
+ updateUI();applyCameraBookmark();debugOverlay=createPlayDebugOverlay({renderer,options:RUN_OPTIONS,getQuality:()=>settings.quality,getTriangleBreakdown:()=>collectTriangleBreakdown(scene)});requestAnimationFrame(animate);
 }
 function applyCameraBookmark(){
  const bookmark=RUN_OPTIONS.bookmark;
@@ -256,6 +256,17 @@ function syncRenderScale(){
  renderer.setPixelRatio(ratio);renderer.setSize(Math.max(1,innerWidth),Math.max(1,innerHeight),false);
  const node=$("render-scale-display");if(node)node.textContent="RENDER "+Math.round(ratio*100)+"%";
 }
+function applyDebugRenderFlags(){
+ const off=RUN_OPTIONS.off;
+ if(renderer)renderer.shadowMap.enabled=settings.quality!=="performance"&&!off.includes("shadows");
+ if(!scene||!off.length)return;
+ scene.traverse(object=>{
+  const renderGroup=object.userData?.renderGroup;
+  if(renderGroup==="grass"&&off.includes("grass"))object.visible=false;
+  else if(renderGroup==="foliage"&&off.includes("foliage"))object.visible=false;
+  else if(renderGroup==="river"&&off.includes("river"))object.visible=false;
+ });
+}
 function applyGraphicsSettings(prefs={}){
  const resolvedProfile=resolveQualityProfile(prefs.quality||settings.quality||"balanced");
  const quality=resolvedProfile.legacyQuality;
@@ -271,7 +282,7 @@ function applyGraphicsSettings(prefs={}){
  if(settings.adaptiveQuality===false)adaptiveScale=1;
  if(renderer){
   renderer.toneMappingExposure=graphicsProfile.exposure;
-  renderer.shadowMap.enabled=quality!=="performance";
+  renderer.shadowMap.enabled=quality!=="performance"&&!RUN_OPTIONS.off.includes("shadows");
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   if(sunLight){sunLight.shadow.mapSize.set(graphicsProfile.shadowSize,graphicsProfile.shadowSize);sunLight.shadow.needsUpdate=true;}
   renderer.shadowMap.needsUpdate=true;syncRenderScale();
@@ -279,6 +290,7 @@ function applyGraphicsSettings(prefs={}){
  if(camera){camera.fov=Number(prefs.fov)||settings.fov||58;camera.updateProjectionMatrix();}
  terrain?.userData?.setGeometryQuality?.(quality);void terrain?.userData?.refreshPbr?.(quality);
  if(biomeDetail?.userData?.setQuality)biomeDetail=biomeDetail.userData.setQuality(quality);
+ applyDebugRenderFlags();
 }
 function updatePerformanceGovernor(dt){
  performanceElapsed+=dt;performanceFrames++;
@@ -324,7 +336,7 @@ function createSky(){
  });
  skyDomeMaterial=domeMaterial;
  const dome=new THREE.Mesh(new THREE.SphereGeometry(760,72,48),domeMaterial);dome.renderOrder=-1000;dome.frustumCulled=false;
- skyShell=new THREE.Group();skyShell.add(dome,stars);scene.add(skyShell);
+ skyShell=new THREE.Group();skyShell.userData.renderGroup="sky";skyShell.add(dome,stars);scene.add(skyShell);
 
  const sunCanvas=document.createElement("canvas");sunCanvas.width=256;sunCanvas.height=256;
  const sunCtx=sunCanvas.getContext("2d"),sunGrad=sunCtx.createRadialGradient(128,128,2,128,128,126);
@@ -380,6 +392,7 @@ function createAurora(parent){
 function deterministic(i,seed){const n=Math.sin(i*127.1+seed*311.7)*43758.5453;return n-Math.floor(n);}
 function createTerrain(w){
  const group=new THREE.Group(),size=TERRAIN_CHUNK_SIZE,chunks=[];
+ group.userData.renderGroup="terrain";
  let currentMaps=null,currentMaterial=new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.94,metalness:.012,vertexColors:true}),generation=0,currentQuality=null,pendingQuality=null,pendingPromise=null;
  let currentSegments=getTerrainBaseSegments(settings.quality),baseX=0,baseZ=0,buildGeneration=0,buildQueue=[],activeBuild=null;
 
@@ -477,6 +490,7 @@ function createTerrain(w){
  group.userData.cancelPendingBuilds=cancelBuilds;
 
  group.userData.refreshPbr=(quality=settings.quality)=>{
+  if(RUN_OPTIONS.off.includes("terrainpbr")){const status=$("texture-quality-status");if(status)status.textContent="TERRAIN PBR // DISABLED BY DEBUG FLAG";return Promise.resolve();}
   if(currentMaps&&currentQuality===quality)return Promise.resolve();
   if(pendingPromise&&pendingQuality===quality)return pendingPromise;
   const request=++generation;pendingQuality=quality;
@@ -536,7 +550,7 @@ function createMountainRidge(w,originX=0,originZ=0){
   const rockTone=new THREE.Color(w.palette[0]).lerp(new THREE.Color(w.palette[1]),.12+deterministic(i+21,w.seed)*.25);
   peaks.setColorAt(i,rockTone);
  }
- peaks.instanceMatrix.needsUpdate=true;peaks.castShadow=true;peaks.receiveShadow=true;group.add(peaks);
+ peaks.instanceMatrix.needsUpdate=true;peaks.castShadow=true;peaks.receiveShadow=true;peaks.userData.renderGroup="rocks";group.add(peaks);
  return group;
 }
 function createWorldDecor(w,originX=0,originZ=0){
@@ -548,7 +562,7 @@ function createWorldDecor(w,originX=0,originZ=0){
   const sx=4+deterministic(i+71,w.seed)*18,sy=3+deterministic(i+81,w.seed)*14,sz=4+deterministic(i+91,w.seed)*18;
   dummy.position.set(x,y+sy*.28,z);dummy.rotation.set(deterministic(i+3,8)*2,deterministic(i+4,9)*4,deterministic(i+5,7)*2);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();rocks.setMatrixAt(i,dummy.matrix);rocks.setColorAt(i,new THREE.Color(w.palette[1]).lerp(new THREE.Color(w.palette[2]),deterministic(i+119,w.seed)*.28));
  }
- rocks.castShadow=true;rocks.receiveShadow=true;group.add(rocks);
+ rocks.castShadow=true;rocks.receiveShadow=true;rocks.userData.renderGroup="rocks";group.add(rocks);
  if(w.terrain===0){
   const density={performance:.58,balanced:1,cinematic:1.28,"4k":1.48,"8k":1.7}[settings.quality]||1;
   const treeCount=Math.round(172*density),groveCount=16;
@@ -611,6 +625,7 @@ function createWorldDecor(w,originX=0,originZ=0){
   if(trunks.instanceColor)trunks.instanceColor.needsUpdate=true;if(branches.instanceColor)branches.instanceColor.needsUpdate=true;if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;
   trunks.castShadow=true;trunks.receiveShadow=true;branches.castShadow=true;branches.receiveShadow=true;
   crowns.castShadow=true;crowns.receiveShadow=true;
+  trunks.userData.renderGroup="foliage";branches.userData.renderGroup="foliage";crowns.userData.renderGroup="foliage";
   group.add(trunks,branches,crowns);
 
   const bushCount=Math.round(132*density);
@@ -629,7 +644,7 @@ function createWorldDecor(w,originX=0,originZ=0){
    dummy.scale.set(scale*1.2,scale*.72,scale);dummy.updateMatrix();bushes.setMatrixAt(i,dummy.matrix);
    bushes.setColorAt(i,new THREE.Color(leafPalette[i%leafPalette.length]));
   }
-  bushes.instanceMatrix.needsUpdate=true;if(bushes.instanceColor)bushes.instanceColor.needsUpdate=true;bushes.castShadow=true;group.add(bushes);
+  bushes.instanceMatrix.needsUpdate=true;if(bushes.instanceColor)bushes.instanceColor.needsUpdate=true;bushes.castShadow=true;bushes.userData.renderGroup="foliage";group.add(bushes);
 
   const sporeCount=Math.round(120*density),spores=new THREE.InstancedMesh(
    new THREE.IcosahedronGeometry(1.6,1),
@@ -642,7 +657,7 @@ function createWorldDecor(w,originX=0,originZ=0){
    dummy.position.set(x,h+1.2+scale,z);dummy.rotation.set(0,deterministic(i,1)*6,0);dummy.scale.setScalar(scale);
    dummy.updateMatrix();spores.setMatrixAt(i,dummy.matrix);
   }
-  spores.instanceMatrix.needsUpdate=true;group.add(spores);
+  spores.instanceMatrix.needsUpdate=true;spores.userData.renderGroup="foliage";group.add(spores);
 
   // A shallow, terrain-conforming river replaces the elevated tube that looked like a floating pipe.
   const riverPositions=[],riverUvs=[],riverIndices=[],riverSamples=180;
@@ -665,7 +680,7 @@ function createWorldDecor(w,originX=0,originZ=0){
    color:"#23877b",roughness:.24,metalness:.035,clearcoat:.82,clearcoatRoughness:.09,
    envMapIntensity:.9,emissive:"#0a3f39",emissiveIntensity:.12,side:THREE.DoubleSide
   }));
-  river.receiveShadow=true;group.add(river);
+  river.receiveShadow=true;river.userData.renderGroup="river";group.add(river);
 
   const bladePositions=[
    -.16,0,0,.16,0,0,-.105,.52,.06,.105,.52,.06,0,1,.16
@@ -688,7 +703,7 @@ function createWorldDecor(w,originX=0,originZ=0){
    dummy.scale.set(width,h,width);dummy.updateMatrix();grass.setMatrixAt(i,dummy.matrix);
    grass.setColorAt(i,new THREE.Color(grassPalette[i%grassPalette.length]).multiplyScalar(.84+deterministic(i+72,w.seed)*.28));
   }
-  grass.instanceMatrix.needsUpdate=true;if(grass.instanceColor)grass.instanceColor.needsUpdate=true;grass.castShadow=false;grass.receiveShadow=false;group.add(grass);
+  grass.instanceMatrix.needsUpdate=true;if(grass.instanceColor)grass.instanceColor.needsUpdate=true;grass.castShadow=false;grass.receiveShadow=false;grass.userData.renderGroup="grass";group.add(grass);
 
   const bloomCount=Math.round(260*density),blooms=new THREE.InstancedMesh(
    new THREE.IcosahedronGeometry(.32,1),
@@ -701,7 +716,7 @@ function createWorldDecor(w,originX=0,originZ=0){
    dummy.position.set(x,y+.55,z);dummy.rotation.set(0,deterministic(i+23,w.seed)*6.28,0);
    dummy.scale.setScalar(.65+deterministic(i+29,w.seed)*.9);dummy.updateMatrix();blooms.setMatrixAt(i,dummy.matrix);
   }
-  blooms.instanceMatrix.needsUpdate=true;group.add(blooms);
+  blooms.instanceMatrix.needsUpdate=true;blooms.userData.renderGroup="grass";group.add(blooms);
  }else{
   let geometry,count=72,scale=1;
   if(w.terrain===1){geometry=new THREE.ConeGeometry(.55,2.6,6);count=92;scale=1.15;}
@@ -717,7 +732,7 @@ function createWorldDecor(w,originX=0,originZ=0){
    else{dummy.position.set(x,h+s*1.2,z);dummy.rotation.set(0,deterministic(i+4,w.seed)*6.28,(deterministic(i+7,w.seed)-.5)*.25);}
    dummy.scale.set(s,s*(.65+deterministic(i+7,w.seed)*1.35),s);dummy.updateMatrix();features.setMatrixAt(i,dummy.matrix);
   }
-  features.castShadow=true;features.receiveShadow=true;group.add(features);
+  features.castShadow=true;features.receiveShadow=true;features.userData.renderGroup="rocks";group.add(features);
   if(w.terrain===1){
    const reefCount=82,reefLights=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.28,1),new THREE.MeshStandardMaterial({color:"#a5fff0",emissive:"#42e7ce",emissiveIntensity:1.4,roughness:.2}),reefCount);
    for(let i=0;i<reefCount;i++){const a=deterministic(i+9,w.seed)*Math.PI*2,r=18+deterministic(i+11,w.seed)*112,x=Math.cos(a)*r,z=Math.sin(a)*r,h=terrainHeight(x+originX,z+originZ,w);dummy.position.set(x,h+.24,z);dummy.scale.setScalar(.45+deterministic(i+81,w.seed)*.55);dummy.updateMatrix();reefLights.setMatrixAt(i,dummy.matrix);}
@@ -1055,6 +1070,7 @@ function buildWorld(worldId,travel=true){
  const decor=createWorldDecor(next,currentRegion.center.x,currentRegion.center.z);decor.position.set(currentRegion.center.x,0,currentRegion.center.z);worldRoot.add(decor);worldRoot.add(createRegionalLandmark(currentRegion));
  biomeDetail=createPlanetaryDetail(THREE,next,{quality:settings.quality,originX:currentRegion.center.x,originZ:currentRegion.center.z,terrainHeight});
  worldRoot.add(biomeDetail);
+ applyDebugRenderFlags();
  animatedObjects=[];worldRoot.traverse(object=>{if(object.userData?.floating)animatedObjects.push(object);});
  if(next.id==="kharon"){const aurora=new THREE.Group();createAurora(aurora);aurora.position.set(currentRegion.center.x,0,currentRegion.center.z);worldRoot.add(aurora);}
  relays=[];buildRegionEntities();
