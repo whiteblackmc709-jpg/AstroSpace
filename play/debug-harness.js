@@ -8,6 +8,14 @@ const BOOKMARKS = Object.freeze({
 
 export const PLAY_DEBUG_BOOKMARKS = BOOKMARKS;
 
+export const PLAY_DEBUG_OFF_FLAGS = Object.freeze([
+  "shadows", "terrainpbr", "grass", "foliage", "river", "post"
+]);
+
+export const PLAY_DEBUG_TRIANGLE_GROUPS = Object.freeze([
+  "terrain", "foliage", "grass", "rocks", "character", "sky", "other"
+]);
+
 export function parsePlayDebugOptions(search = "") {
   const params = new URLSearchParams(search);
   const rawSeed = params.get("seed");
@@ -20,11 +28,61 @@ export function parsePlayDebugOptions(search = "") {
   const bookmark = Object.prototype.hasOwnProperty.call(BOOKMARKS, requestedBookmark)
     ? requestedBookmark
     : null;
+  const off = [...new Set(params.getAll("off")
+    .flatMap(value => value.split(","))
+    .map(value => value.trim().toLowerCase())
+    .filter(value => PLAY_DEBUG_OFF_FLAGS.includes(value)))];
   return Object.freeze({
     debug: params.get("debug") === "1",
     seed,
-    bookmark
+    bookmark,
+    off: Object.freeze(off)
   });
+}
+
+function geometryTriangleCount(geometry, instanceCount = 1) {
+  if (!geometry?.attributes?.position) return 0;
+  const drawCount = geometry.index?.count ?? geometry.attributes.position.count;
+  const drawRange = geometry.drawRange || { start: 0, count: Infinity };
+  const drawStart = Math.max(0, drawRange.start || 0);
+  const drawEnd = Math.min(drawCount, Number.isFinite(drawRange.count)
+    ? drawStart + Math.max(0, drawRange.count)
+    : drawCount);
+  let primitiveIndices = 0;
+  const groups = Array.isArray(geometry.groups) ? geometry.groups : [];
+  if (groups.length) {
+    for (const group of groups) {
+      const start = Math.max(drawStart, group.start || 0);
+      const end = Math.min(drawEnd, (group.start || 0) + (group.count || 0));
+      primitiveIndices += Math.max(0, end - start);
+    }
+  } else {
+    primitiveIndices = Math.max(0, drawEnd - drawStart);
+  }
+  return Math.floor(primitiveIndices / 3) * Math.max(0, instanceCount);
+}
+
+/**
+ * Geometry-cost estimate grouped by tagged scene object. It deliberately reports
+ * scene-visible geometry, not renderer.info's frustum-culled submitted triangles.
+ */
+export function collectTriangleBreakdown(root) {
+  const triangles = Object.fromEntries(PLAY_DEBUG_TRIANGLE_GROUPS.map(group => [group, 0]));
+  const visit = (object, inheritedGroup = "other", parentVisible = true) => {
+    if (!object) return;
+    const visible = parentVisible && object.visible !== false;
+    if (!visible) return;
+    const ownGroup = object.userData?.renderGroup;
+    const group = PLAY_DEBUG_TRIANGLE_GROUPS.includes(ownGroup) ? ownGroup : inheritedGroup;
+    if (object.isMesh && object.geometry) {
+      const instances = object.isInstancedMesh ? object.count : 1;
+      triangles[group] += geometryTriangleCount(object.geometry, instances);
+    }
+    for (const child of object.children || []) visit(child, group, visible);
+  };
+  visit(root);
+  const total = PLAY_DEBUG_TRIANGLE_GROUPS.reduce((sum, group) => sum + triangles[group], 0);
+  return Object.freeze({ ...triangles, total });
 }
 
 export function createSeededRandom(seed) {
@@ -112,7 +170,12 @@ export function createGpuTimer(renderer) {
   };
 }
 
-export function createPlayDebugOverlay({ renderer, options, getQuality = () => "unknown" } = {}) {
+export function createPlayDebugOverlay({
+  renderer,
+  options,
+  getQuality = () => "unknown",
+  getTriangleBreakdown = () => null
+} = {}) {
   if (!options?.debug || !renderer || typeof document === "undefined") return null;
 
   const panel = document.createElement("pre");
@@ -178,6 +241,8 @@ export function createPlayDebugOverlay({ renderer, options, getQuality = () => "
     const info = renderer.info || {};
     const render = info.render || {};
     const memory = info.memory || {};
+    const triangleGroups = getTriangleBreakdown() || {};
+    const count = value => Number(value || 0).toLocaleString("en-US");
     const pixelRatio = renderer.getPixelRatio?.() || 1;
     const deviceRatio = window.devicePixelRatio || 1;
     const renderScale = Math.round((pixelRatio / deviceRatio) * 100);
@@ -193,6 +258,12 @@ export function createPlayDebugOverlay({ renderer, options, getQuality = () => "
         " | JS RENDER SUBMIT: " + (latestRenderSubmitMs === null ? "n/a" : latestRenderSubmitMs.toFixed(2) + " ms"),
       "GPU: " + (gpuTimer.read() === null ? "n/a" : gpuTimer.read().toFixed(2) + " ms (timer query)"),
       "JS timings are CPU-side; GPU time requires a supported timer query.",
+      "TRIANGLES BY GROUP (scene-visible estimate):",
+      "TERRAIN " + count(triangleGroups.terrain) + " | FOLIAGE " + count(triangleGroups.foliage) + " | GRASS " + count(triangleGroups.grass),
+      "ROCKS " + count(triangleGroups.rocks) + " | CHARACTER " + count(triangleGroups.character) + " | SKY " + count(triangleGroups.sky) + " | OTHER " + count(triangleGroups.other),
+      "GROUP ESTIMATE TOTAL: " + count(triangleGroups.total),
+      "OFF: " + (options.off?.length ? options.off.join(", ").toUpperCase() : "NONE") +
+        (options.off?.includes("post") ? " | POST FX: NOT PRESENT IN CURRENT RUNTIME" : ""),
       "RENDER SCALE: " + renderScale + "% DPR | PIXEL RATIO: " + pixelRatio.toFixed(2),
       "QUALITY: " + String(getQuality()).toUpperCase(),
       "SEED: " + seedLabel + " | BOOKMARK: " + bookmarkLabel,
