@@ -94,3 +94,77 @@ Using the same seed, Balanced quality, same viewport/DPR and `near`, `mid`, `far
 8. **Runtime:** full repository CI and real Three.js runtime tests pass; preview deployment is ready for manual visual review.
 
 Phase 2A-1 stops after deployment and owner screenshot review. Phase 2A-2 is not part of this change.
+
+## 7. Owner visual-regression report and UV root-cause verification
+
+### Observed regression on preview `jgwwzedc0`
+
+The owner compared all five bookmarks against the baseline and reported severe terrain darkening: the near screenshot showed almost only the player, while terrain colour patches and material detail seen in the baseline were lost. This is an owner visual observation; no image has been independently captured or reinterpreted by the coding environment.
+
+### Source-level diagnosis — UV omission confirmed
+
+The proposed UV diagnosis is confirmed by direct source comparison:
+
+- The pre-LOD terrain path constructed `THREE.PlaneGeometry(size,size,segments,segments)`, rotated it by `-PI/2`, and therefore retained the PlaneGeometry `uv` attribute.
+- The LOD builder previously created only `position`, `normal`, and `color`; there was no `uv` attribute.
+- Production `createPlanetPbrMaterial(...,{surface:"terrain"})` binds `map`, `normalMap`, `roughnessMap`, and `bumpMap`. All require usable texture coordinates.
+- A missing UV attribute means those terrain map lookups cannot reproduce the previous PlaneGeometry sampling. This is a strong, directly supported cause of the reported loss of PBR detail/colour variation. The visual fix still requires owner review on the new preview.
+
+### UV correction and regression coverage
+
+Commit `28ba346319bd` restores a UV attribute for surface and skirt vertices at every LOD:
+- `u = column / segments`
+- `v = 1 - row / segments`
+
+This matches the orientation and normalized 0–1 mapping produced by the former PlaneGeometry before its X rotation. The UV is chunk-local, so each chunk keeps the existing texture repeat policy (including `repeatX=16`, `repeatY=16`); there is no attempt to rescale texture repeats by LOD. Because all rings span the same chunk size, coincident world-space points at Near/Middle/Far edges have identical UVs. Every skirt vertex copies the UV of the edge vertex it extends.
+
+The real Three.js `0.170.0` terrain regression checks for every built ring:
+- a UV buffer exists and has one pair for each position, including skirts;
+- every U/V component is in `[0,1]`;
+- each U/V equals the corresponding PlaneGeometry-style normalized local coordinate;
+- the terrain PBR material actually binds albedo, normal, roughness and bump maps.
+
+This is geometry/material contract coverage, not pixel-level image comparison.
+
+## 8. Owner-reported performance observations (not independently captured)
+
+The following measurements and interpretations were reported by the owner after comparing the five bookmarks on preview `jgwwzedc0`. They are recorded as observations, not recalculated from images by this environment.
+
+| Observation | Owner-reported result |
+|---|---|
+| Scene triangles | Approx. 1.44M baseline → 1.06M on Phase 2A-1, about 26% fewer; still short of the ≤50% target |
+| GPU timer | Approx. 23–26 ms/frame |
+| JavaScript update | Approx. 0.1 ms |
+| Frame-time tail | P95 improved from approx. 46–62 ms to 35–41 ms |
+| Aether flight | Approx. 20.3 FPS baseline → 30.2 FPS after LOD |
+| FPS behavior | Frames appear capped around 30 FPS by VSync, making GPU milliseconds more useful for the next comparison |
+| GPU target | Under 14 ms/frame |
+
+The reported GPU-vs-JS gap indicates a GPU-bound workload on the measured machine, subject to timer-query support and capture conditions. The ~30 FPS VSync observation means FPS alone should not be used to rank the isolation runs; compare GPU timer-query ms and keep the same display refresh/VSync conditions.
+
+### Candidate GPU cost — hypothesis only
+
+The terrain `MeshPhysicalMaterial` has `clearcoat`, biome-dependent `sheen`, `bumpMap`, `normalMap`, and roughness/albedo maps. These are candidate contributors, **not a confirmed bottleneck**. No material simplification is authorized or included in this diagnostic step. First compare the isolation flags below at the same seed/bookmark, quality, viewport, DPR, GPU, and VSync conditions. Only propose a material change after `off=terrainpbr` demonstrates a meaningful repeatable reduction and its visual trade-off is reviewed.
+
+### GPU isolation flags
+
+The debug run accepts one or multiple `off` values (comma-separated or repeated query keys):
+
+| Flag | Diagnostic effect |
+|---|---|
+| `off=shadows` | Disable renderer shadow-map pass |
+| `off=terrainpbr` | Keep the simple vertex-colour terrain material and skip terrain PBR map generation |
+| `off=grass` | Hide tagged grass, fern, and ground-flower groups |
+| `off=foliage` | Hide tagged tree/canopy/leaf/foliage groups |
+| `off=river` | Hide the tagged river mesh |
+| `off=post` | Accepted and reported, but the current playable runtime has no post-processing pass to disable |
+
+Examples:
+- `?debug=1&seed=1&bookmark=near&off=shadows`
+- `?debug=1&seed=1&bookmark=mid&off=terrainpbr`
+- `?debug=1&seed=1&bookmark=mid&off=grass,foliage`
+- `?debug=1&seed=1&bookmark=mid&off=shadows,terrainpbr,grass,foliage,river`
+
+With the overlay enabled, the active `OFF` flags are printed beside the GPU timing. The renderer's total submitted triangle count remains `renderer.info.render.triangles`. The category breakdown (terrain, foliage, grass, rocks, character, sky, other) is a separate **scene-visible geometry estimate** computed from tagged mesh geometry and instance counts; it is not frustum-culled renderer submission accounting. Do not add it to or substitute it for the renderer's actual triangle counter.
+
+No default visuals, lighting, sky, vegetation density, or production material settings are changed by these diagnostics. Remove the `off` parameters to restore the normal run. Results should be reported as per-flag GPU-ms deltas from the same seed/bookmark and repeated captures, not inferred from FPS when VSync is binding.
