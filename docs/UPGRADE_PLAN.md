@@ -34,12 +34,12 @@ Schema JSON, canonical ID migration, legacy data migration, Web Workers/Offscree
 - Không đổi SAVE_KEY, task IDs, controls, audio, event timing hoặc gameplay behavior mặc định.
 - Sau commit này, dừng để chủ dự án mở game, chụp 5 bookmark và gửi số liệu/device metadata làm baseline chính thức.
 
-### 1C — Phần nhẹ (chỉ sau khi nhận baseline)
+### 1C — Phần nhẹ (baseline đã nhận; triển khai sau khi tag baseline được xác nhận)
 
-- QualityProfile adapter cho legacy quality values; mapping phải giữ đúng pixel ratio, max pixel budget, shadow size, exposure và profile đang lưu.
-- Tái sử dụng scratch Vector3/Matrix4/Color trong update path, không đổi kết quả camera/movement.
-- Bảo đảm chunk/world dispose geometry/material/texture đúng ownership, idempotent và không dispose resource dùng chung còn tham chiếu.
-- Không đổi governor trước khi baseline chứng minh vấn đề.
+- QualityProfile adapter cho legacy quality values; mapping phải giữ đúng pixel ratio, max pixel budget, shadow size, exposure và profile đang lưu, tương thích `astrospace-settings-v2`.
+- Tái sử dụng scratch Vector3/Matrix4/Color trong update path, không đổi kết quả camera/movement; ưu tiên `updateCamera()`, `moveRobot()` và các hot path đã xác nhận.
+- Bảo đảm chunk/world dispose geometry/material/texture đúng ownership, idempotent và không dispose resource dùng chung còn tham chiếu giữa chunk/world.
+- Không đổi governor hoặc chất lượng hình ảnh mặc định trong 1C. Baseline đã được gửi; remote tag `baseline-phase1a-5234c56` vẫn phải xác nhận trước khi tạo commit 1C.
 
 ### Gate Phase 1
 
@@ -57,6 +57,38 @@ Sau mỗi cổng phải dừng và chờ chủ dự án duyệt before/after scr
 - Material blend theo elevation, slope, moisture, wetness, shoreline và macro variation.
 - Giữ stitching/skirt; kiểm tra seam, normals, shadows và culling 360 độ.
 - Gate: ảnh thật năm bookmarks trước/sau cùng seed; metrics, console, trade-offs; dừng chờ duyệt.
+
+
+
+### Baseline evidence received — 2026-11-15
+
+**Số liệu trực tiếp từ ảnh runtime overlay (Balanced, seed 1, render scale 62%, pixel ratio 0.78):**
+
+- `mid` và `far` có cùng `1,442,748` triangles và 90 calls; `orbit` có `1,342,396`; `aether` có `1,442,892`. Triangle count thay đổi ít theo các bookmark camera trong lượt đo này. `near` có `1,444,420`, nhưng đang có Aurora Bloom nên không dùng làm đối chứng sạch.
+- FPS: mid 26.8, far 26.3, orbit 27.2, aether 20.3. Near 29.2 nhưng đang có event và cần retake.
+- P95 của cả năm ảnh nằm trong khoảng 45.80–96.70 ms. Đây là dấu hiệu frame-time tail/spike cần chẩn đoán; ảnh tĩnh không xác định được nguồn spike.
+- Geometries dao động 117–128 và textures là 14. Đây là renderer counters, không phải VRAM.
+- Aether là bookmark yếu nhất trong lượt này: 20.3 FPS, frame 49.36 ms, P95 62.60 ms.
+
+**Suy luận/giả thuyết cần kiểm chứng, không phải kết quả đã chứng minh:**
+
+- Mid/far có triangle count trùng khít là dấu hiệu terrain/scene có thể chưa có camera-distance LOD hoặc culling hiệu quả. Số liệu renderer không tự nó chứng minh toàn bộ culling đang thiếu.
+- `createTerrain()` đặt Balanced ở 224 segments và tạo lưới 3×3 chunk. Theo phép tính (224 × 224 × 2 × 9), riêng mặt terrain có khoảng 903,168 triangles lý thuyết. So với tổng 1,442,748 triangles tại mid, tỷ lệ trực tiếp là khoảng 62.60%, không phải 73%; tỷ lệ 73% cần mẫu số/định nghĩa khác và chưa xác minh.
+- Dù render scale đã 62%, FPS vẫn dưới 30 ở mid/far/orbit/aether. Giả thuyết bottleneck có thể nằm ở CPU/scene geometry/draw workload hơn là pixel fill-rate; cần phân biệt bằng JS update, JS render-submit và GPU timer query.
+- Governor hiện tại giảm adaptive render scale; nó không tự giảm terrain segment count/density khi FPS thấp. Hạ resolution thêm có nguy cơ làm ảnh mờ mà không xử lý bottleneck hình học/CPU. Đề xuất 2A: ưu tiên đánh giá geometry/instance density trước khi hạ resolution dưới ngưỡng chất lượng chấp nhận được.
+- P95 cao hơn frame trung bình gợi ý spike; các ứng viên cần đo gồm allocation trong frame loop, rebuild/recenter chunk đồng bộ và spawn/clear event. Chưa có bằng chứng quy kết spike cho một ứng viên cụ thể.
+- Aether flight cần benchmark riêng; ảnh cho thấy FPS thấp nhất, chưa chứng minh nguyên nhân.
+
+### 2A — Ưu tiên benchmark và thiết kế LOD (không triển khai trong bước này)
+
+1. Terrain LOD theo vòng khoảng cách: gần dày, xa thưa; thiết kế stitching/skirt/transition để không xuất hiện seam hoặc crack.
+2. Chunk variant/build phải tránh tái tạo đồng bộ trong cùng frame; đo chi phí update/rebuild trước khi chọn chiến lược.
+3. Xác định thứ tự governor: giảm geometry/instance density hoặc chọn LOD trước; chỉ giảm render scale khi cần thiết và phù hợp với bottleneck.
+4. Điều tra Aether flight bằng cùng seed/bookmark, ghi riêng JS update, JS render-submit, GPU timer query và triangle/call counts.
+5. Retake bookmark near khi không có Aurora Bloom; ghi CPU/GPU/driver, viewport CSS/DPR, warm-up và thời lượng sampling.
+
+**Gate:** phần trên chỉ là baseline review và đề xuất điều tra. Phase 2A chưa được bắt đầu hoặc thay đổi hình ảnh cho tới khi chủ dự án duyệt.
+
 
 ### 2B — Elyndra vegetation/ecology
 
@@ -110,3 +142,8 @@ Mục tiêu sản phẩm (chưa phải kết quả): desktop tầm trung 60 FPS 
 ## 9. Hoãn có chủ đích
 
 Schema/config JSON, canonical ID migration, Workers/OffscreenCanvas và modularization lớn không thuộc Phase 1. Chỉ lập lại phạm vi khi Elyndra thực sự cần hoặc benchmark chứng minh cần thiết.
+
+
+## 10. Kết quả baseline 1A ngày 2026-11-15
+
+Xem [BASELINE.md](BASELINE.md). Năm ảnh gốc được gửi trong cuộc hội thoại; tệp nhị phân chưa được ghi vào Git do giới hạn upload của connector hiện tại. Bookmark `near` đang có Aurora Bloom nên chưa đồng điều kiện. CPU/GPU timings chưa có; không bắt đầu 2A trước khi có duyệt.
