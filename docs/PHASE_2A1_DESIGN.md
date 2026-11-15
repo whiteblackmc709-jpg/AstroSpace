@@ -168,3 +168,19 @@ Examples:
 With the overlay enabled, the active `OFF` flags are printed beside the GPU timing. The renderer's total submitted triangle count remains `renderer.info.render.triangles`. The category breakdown (terrain, foliage, grass, rocks, character, sky, other) is a separate **scene-visible geometry estimate** computed from tagged mesh geometry and instance counts; it is not frustum-culled renderer submission accounting. Do not add it to or substitute it for the renderer's actual triangle counter.
 
 No default visuals, lighting, sky, vegetation density, or production material settings are changed by these diagnostics. Remove the `off` parameters to restore the normal run. Results should be reported as per-flag GPU-ms deltas from the same seed/bookmark and repeated captures, not inferred from FPS when VSync is binding.
+
+### Diagnostic implementation record — current code state
+
+The owner-requested isolation and grouped-triangle instrumentation is now implemented on this branch:
+
+- `1372992156ad` — extend `parsePlayDebugOptions()`, add asynchronous off-flag parsing and scene-visible triangle-group collector; display active flags and grouped triangle estimate in the debug overlay.
+- `0c506314dc44` — tag biome detail roots as rocks/foliage/grass/other and separate grasses, ferns and flowers from the canopy group.
+- `4fc728f5f4c5` — wire `shadows`, `terrainpbr`, `grass`, `foliage` and `river` isolation to actual render objects/material setup; tag terrain, rocks, character and sky; publish group breakdown in the overlay.
+- `c3a6c9631099`, `201ce4b32239`, `faad4074a216` — tests for accepted/deduplicated `off` query values, hidden-group exclusion, InstancedMesh triangle multiplication and the runtime tagging/flag contracts.
+- `708f213c75e5` — add `phase/**` to the validation workflow push filter so phase branch commits receive the same full validation suite.
+
+The total `renderer.info.render.triangles` remains the submitted renderer counter. The category totals are an explicitly labelled scene-visible geometry estimate, because this low-overhead collector does not reproduce Three.js camera-frustum culling or per-pass renderer submission. The overlay shows both values rather than conflating them.
+
+**Full verification:** GitHub Actions run [`43710281027`](https://github.com/whiteblackmc709-jpg/AstroSpace/actions/runs/43710281027) passed on commit `708f213c75e5afebc1542a5255266816e3ce7f32`: syntax, HTML/CSS, all gameplay contracts, real Three.js 0.170.0 planet/resource/terrain runtime tests (including UV and terrain material maps), CMake build, CTest, and JSON validation.
+
+The UV fix has code-level and real-runtime test coverage, but the owner still needs to inspect all five browser screenshots to confirm that the severe black-terrain visual regression is actually resolved. No material simplification has been made. Use the off flags to collect GPU timer-query comparisons before proposing that next change.
