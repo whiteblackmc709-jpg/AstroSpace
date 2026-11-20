@@ -349,6 +349,7 @@ export function createPlanetaryDetail(THREE,world,{
   finish(islands);
   const cloudMat=new THREE.MeshStandardMaterial({color:"#e7d8c2",transparent:true,opacity:.27,roughness:1,depthWrite:false});
   const clouds=instance(THREE,new THREE.SphereGeometry(1,12,10),cloudMat,budget.cloudPuffs,floaters);
+  clouds.userData.renderGroup="sky";
   for(let i=0;i<budget.cloudPuffs;i++){
    const a=seeded(i+2280,seed)*Math.PI*2,r=80+seeded(i+2300,seed)*870,x=Math.cos(a)*r,z=Math.sin(a)*r,y=54+seeded(i+2320,seed)*115,sc=9+seeded(i+2340,seed)*27;
    place(THREE,clouds,i,dummy,x,y,z,sc*2.5,sc*.32,sc,0,seeded(i+2360,seed)*6.28,0);

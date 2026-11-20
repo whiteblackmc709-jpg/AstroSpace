@@ -10,16 +10,16 @@ import {
 } from "../play/debug-harness.js";
 
 const enabled = parsePlayDebugOptions("?debug=1&seed=7319&bookmark=orbit");
-assert.deepEqual(enabled, { debug: true, seed: 7319, bookmark: "orbit", off: [] });
+assert.deepEqual(enabled, { debug: true, seed: 7319, bookmark: "orbit", lockscale: null, off: [] });
 
 const disabled = parsePlayDebugOptions("");
-assert.deepEqual(disabled, { debug: false, seed: null, bookmark: null, off: [] });
+assert.deepEqual(disabled, { debug: false, seed: null, bookmark: null, lockscale: null, off: [] });
 
 const invalid = parsePlayDebugOptions("?debug=true&seed=not-a-number&bookmark=unknown");
-assert.deepEqual(invalid, { debug: false, seed: null, bookmark: null, off: [] });
+assert.deepEqual(invalid, { debug: false, seed: null, bookmark: null, lockscale: null, off: [] });
 
 const negative = parsePlayDebugOptions("?debug=1&seed=-17&bookmark=aether");
-assert.deepEqual(negative, { debug: true, seed: -17, bookmark: "aether", off: [] });
+assert.deepEqual(negative, { debug: true, seed: -17, bookmark: "aether", lockscale: null, off: [] });
 
 assert.deepEqual(Object.keys(PLAY_DEBUG_BOOKMARKS), ["near", "mid", "far", "orbit", "aether"]);
 for (const bookmark of Object.values(PLAY_DEBUG_BOOKMARKS)) {
@@ -28,10 +28,10 @@ for (const bookmark of Object.values(PLAY_DEBUG_BOOKMARKS)) {
 }
 assert.equal(PLAY_DEBUG_BOOKMARKS.aether.flight, true);
 assert.ok(PLAY_DEBUG_BOOKMARKS.aether.altitude > 0);
-assert.deepEqual(PLAY_DEBUG_OFF_FLAGS, ["shadows", "terrainpbr", "grass", "foliage", "river", "post"]);
+assert.deepEqual(PLAY_DEBUG_OFF_FLAGS, ["shadows", "terrainpbr", "grass", "foliage", "river", "rocks", "sky", "fog", "hud", "post"]);
 assert.deepEqual(
-  parsePlayDebugOptions("?debug=1&off=shadows,terrainpbr&off=grass&off=foliage,river&off=post&off=unknown").off,
-  ["shadows", "terrainpbr", "grass", "foliage", "river", "post"],
+  parsePlayDebugOptions("?debug=1&off=shadows,terrainpbr&off=grass&off=foliage,river&off=rocks,sky&off=fog,hud,post&off=unknown").off,
+  ["shadows", "terrainpbr", "grass", "foliage", "river", "rocks", "sky", "fog", "hud", "post"],
   "off flags accept comma-separated or repeated query parameters, deduplicate, and ignore unknown names"
 );
 assert.deepEqual(
@@ -39,6 +39,14 @@ assert.deepEqual(
   ["grass"],
   "render isolation flags are usable independently of the visible debug overlay"
 );
+
+assert.equal(parsePlayDebugOptions("?lockscale=0.78").lockscale, 0.78);
+assert.equal(parsePlayDebugOptions("?lockscale=1.25").lockscale, 1.25);
+for (const invalidScale of ["0", "0.1", "2.6", "NaN", "auto", "-1"]) {
+  assert.equal(parsePlayDebugOptions("?lockscale="+encodeURIComponent(invalidScale)).lockscale, null);
+}
+assert.equal(parsePlayDebugOptions("?lockscale=0.78&off=rocks,sky,fog,hud").off.length, 4);
+
 
 // Group counts include regular and instanced mesh triangle costs and ignore hidden branches.
 const makeMesh = (count, instances = 1) => ({
@@ -138,3 +146,5 @@ assert.match(debugSource, /"top:auto"/, "runtime debug overlay must not remain p
 assert.match(debugSource, /"bottom:88px"/, "runtime debug overlay must move below the world-title area");
 assert.match(debugSource, /JS timings are CPU-side; GPU time requires a supported timer query\./,
   "the overlay must distinguish JavaScript CPU timings from GPU timer-query results");
+assert.match(debugSource, /FRAME TOTAL:/, "overlay shows total RAF interval beside GPU ms");
+assert.match(debugSource, /SCALE LOCKED:/, "overlay shows when pixel ratio is locked");

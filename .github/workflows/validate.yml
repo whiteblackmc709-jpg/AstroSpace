@@ -21,6 +21,7 @@ jobs:
           node --check assets/pbr-surfaces.js
           node --check assets/planetary-detail.js
           node --check assets/three-resource-lifecycle.js
+          node --check play/debug-harness.js
           node --check play/quality-profile.js
           node --check play/terrain-sampling.js
           node --check play/terrain-lod.js

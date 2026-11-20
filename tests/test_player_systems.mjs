@@ -23,12 +23,19 @@ assert.match(game, /createPlanetaryDetail\(THREE,next/, "Every planet must recei
 assert.match(game, /biomeDetail=biomeDetail\.userData\.setQuality\(quality\)/, "Biome detail density must follow the active quality profile.");
 const detailSource = readFileSync(new URL("../assets/planetary-detail.js", import.meta.url), "utf8");
 const debugHarness = readFileSync(new URL("../play/debug-harness.js", import.meta.url), "utf8");
+const playCss = readFileSync(new URL("../play/play.css", import.meta.url), "utf8");
 for (const contract of [
   'RUN_OPTIONS.off.includes("terrainpbr")',
   'RUN_OPTIONS.off.includes("shadows")',
   'renderGroup==="grass"&&off.includes("grass")',
   'renderGroup==="foliage"&&off.includes("foliage")',
   'renderGroup==="river"&&off.includes("river")',
+  'RUN_OPTIONS.lockscale!==null?RUN_OPTIONS.lockscale',
+  'RUN_OPTIONS.lockscale!==null){',
+  'off.includes("fog")?null:new THREE.Fog(currentWorld.fog,560,4800)',
+  '["grass","foliage","river","rocks","sky"].includes(renderGroup)',
+  'off.includes("hud")'
+
   'getTriangleBreakdown:()=>collectTriangleBreakdown(scene)',
   'group.userData.renderGroup="terrain"',
   'avatar.group.userData.renderGroup="character"',
@@ -42,6 +49,8 @@ assert.ok(detailSource.includes('foliage.userData.renderGroup="foliage"'),
   "Biome canopy meshes need a distinct foliage profiling group.");
 assert.ok(debugHarness.includes("scene-visible estimate"),
   "Grouped triangle numbers must be labelled as a scene-visible estimate, not exact renderer submissions.");
+assert.ok(playCss.includes(".game-shell.debug-hide-hud>:not(#game-canvas):not(.world-grade):not(.film-grain)"),
+  "HUD diagnostic mode hides UI DOM but preserves canvas and grade layers.");
 const terrainSampling = readFileSync(new URL("../play/terrain-sampling.js", import.meta.url), "utf8");
 const terrainLod = readFileSync(new URL("../play/terrain-lod.js", import.meta.url), "utf8");
 assert.match(game, /import \{ terrainHeight \} from "\.\/terrain-sampling\.js"/,

@@ -9,7 +9,7 @@ const BOOKMARKS = Object.freeze({
 export const PLAY_DEBUG_BOOKMARKS = BOOKMARKS;
 
 export const PLAY_DEBUG_OFF_FLAGS = Object.freeze([
-  "shadows", "terrainpbr", "grass", "foliage", "river", "post"
+  "shadows", "terrainpbr", "grass", "foliage", "river", "rocks", "sky", "fog", "hud", "post"
 ]);
 
 export const PLAY_DEBUG_TRIANGLE_GROUPS = Object.freeze([
@@ -28,6 +28,11 @@ export function parsePlayDebugOptions(search = "") {
   const bookmark = Object.prototype.hasOwnProperty.call(BOOKMARKS, requestedBookmark)
     ? requestedBookmark
     : null;
+  const rawLockScale = params.get("lockscale");
+  const parsedLockScale = rawLockScale === null ? NaN : Number(rawLockScale);
+  const lockscale = Number.isFinite(parsedLockScale) && parsedLockScale >= 0.25 && parsedLockScale <= 2.5
+    ? parsedLockScale
+    : null;
   const off = [...new Set(params.getAll("off")
     .flatMap(value => value.split(","))
     .map(value => value.trim().toLowerCase())
@@ -36,6 +41,7 @@ export function parsePlayDebugOptions(search = "") {
     debug: params.get("debug") === "1",
     seed,
     bookmark,
+    lockscale,
     off: Object.freeze(off)
   });
 }
@@ -246,17 +252,19 @@ export function createPlayDebugOverlay({
     const pixelRatio = renderer.getPixelRatio?.() || 1;
     const deviceRatio = window.devicePixelRatio || 1;
     const renderScale = Math.round((pixelRatio / deviceRatio) * 100);
+    const frameTotalMs = Number.isFinite(deltaSeconds) && deltaSeconds > 0 ? deltaSeconds * 1000 : null;
     const seedLabel = options.seed === null ? "default" : String(options.seed);
     const bookmarkLabel = options.bookmark || "none";
 
     panel.textContent = [
       "ASTROSPACE // RUNTIME DEBUG",
-      "FPS: " + (fps ? fps.toFixed(1) : "--") + " | FRAME: " + (averageMs ? averageMs.toFixed(2) : "--") + " ms | P95: " + (p95Ms ? p95Ms.toFixed(2) : "--") + " ms",
+      "FPS: " + (fps ? fps.toFixed(1) : "--") + " | FRAME AVG: " + (averageMs ? averageMs.toFixed(2) : "--") + " ms | P95: " + (p95Ms ? p95Ms.toFixed(2) : "--") + " ms",
       "CALLS: " + (render.calls ?? "--") + " | TRIANGLES: " + (render.triangles ?? "--"),
       "GEOMETRIES: " + (memory.geometries ?? "--") + " | TEXTURES: " + (memory.textures ?? "--"),
       "JS UPDATE: " + (latestUpdateMs === null ? "n/a" : latestUpdateMs.toFixed(2) + " ms") +
         " | JS RENDER SUBMIT: " + (latestRenderSubmitMs === null ? "n/a" : latestRenderSubmitMs.toFixed(2) + " ms"),
-      "GPU: " + (gpuTimer.read() === null ? "n/a" : gpuTimer.read().toFixed(2) + " ms (timer query)"),
+      "GPU: " + (gpuTimer.read() === null ? "n/a" : gpuTimer.read().toFixed(2) + " ms (timer query)") +
+        " | FRAME TOTAL: " + (frameTotalMs === null ? "n/a" : frameTotalMs.toFixed(2) + " ms (RAF interval)"),
       "JS timings are CPU-side; GPU time requires a supported timer query.",
       "TRIANGLES BY GROUP (scene-visible estimate):",
       "TERRAIN " + count(triangleGroups.terrain) + " | FOLIAGE " + count(triangleGroups.foliage) + " | GRASS " + count(triangleGroups.grass),
@@ -264,7 +272,9 @@ export function createPlayDebugOverlay({
       "GROUP ESTIMATE TOTAL: " + count(triangleGroups.total),
       "OFF: " + (options.off?.length ? options.off.join(", ").toUpperCase() : "NONE") +
         (options.off?.includes("post") ? " | POST FX: NOT PRESENT IN CURRENT RUNTIME" : ""),
-      "RENDER SCALE: " + renderScale + "% DPR | PIXEL RATIO: " + pixelRatio.toFixed(2),
+      options.lockscale === null
+        ? "RENDER SCALE: " + renderScale + "% DPR | PIXEL RATIO: " + pixelRatio.toFixed(2) + " | SCALE AUTO"
+        : "SCALE LOCKED: PIXEL RATIO " + options.lockscale.toFixed(2) + " | RENDER SCALE " + renderScale + "% DPR",
       "QUALITY: " + String(getQuality()).toUpperCase(),
       "SEED: " + seedLabel + " | BOOKMARK: " + bookmarkLabel,
       "Resource counts are renderer counters, not VRAM."

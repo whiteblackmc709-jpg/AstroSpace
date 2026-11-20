@@ -303,3 +303,6 @@
  .top-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
  .top-button,.exit-button{width:100%;min-width:0;justify-content:center;overflow:hidden;text-overflow:ellipsis}
 }
+
+/* Diagnostic-only HUD suppression: preserve the game canvas and non-HUD image grade. */
+.game-shell.debug-hide-hud>:not(#game-canvas):not(.world-grade):not(.film-grain){display:none!important}

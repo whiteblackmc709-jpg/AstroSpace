@@ -12,7 +12,7 @@ import * as SocialSystem from "./social.js";
 import { mountSocialUI } from "./social-ui.js?v=phase-1c-quality-profile-r1";
 import { createPlanetPbrMaps, createPlanetPbrMaterial, createCinematicEnvironment } from "../assets/pbr-surfaces.js?v=toolbar-boot-fix-r1";
 import { createPlanetaryDetail } from "../assets/planetary-detail.js?v=orient-cylinder-three-scope-r1";
-import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS, collectTriangleBreakdown } from "./debug-harness.js?v=phase-1a-timing-r1";
+import { createPlayDebugOverlay, createSeededRandom, parsePlayDebugOptions, PLAY_DEBUG_BOOKMARKS, collectTriangleBreakdown } from "./debug-harness.js?v=phase-2a2-profiling-r1";
 const THREE_URL="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
 const SAVE_KEY="astrospace-campaign-v2";
 const RUN_OPTIONS=parsePlayDebugOptions(window.location.search);
@@ -252,20 +252,23 @@ function syncRenderScale(){
  const dpr=window.devicePixelRatio||1,viewportPixels=Math.max(1,window.innerWidth*window.innerHeight);
  const budgetRatio=Math.sqrt(graphicsProfile.maxPixels/viewportPixels);
  const adaptive=settings.adaptiveQuality===false?1:adaptiveScale;
- const ratio=Math.max(.62,Math.min(dpr,graphicsProfile.pixelRatio,budgetRatio)*adaptive);
+ const ratio=RUN_OPTIONS.lockscale!==null
+  ?RUN_OPTIONS.lockscale
+  :Math.max(.62,Math.min(dpr,graphicsProfile.pixelRatio,budgetRatio)*adaptive);
  renderer.setPixelRatio(ratio);renderer.setSize(Math.max(1,innerWidth),Math.max(1,innerHeight),false);
  const node=$("render-scale-display");if(node)node.textContent="RENDER "+Math.round(ratio*100)+"%";
 }
 function applyDebugRenderFlags(){
  const off=RUN_OPTIONS.off;
  if(renderer)renderer.shadowMap.enabled=settings.quality!=="performance"&&!off.includes("shadows");
- if(!scene||!off.length)return;
- scene.traverse(object=>{
-  const renderGroup=object.userData?.renderGroup;
-  if(renderGroup==="grass"&&off.includes("grass"))object.visible=false;
-  else if(renderGroup==="foliage"&&off.includes("foliage"))object.visible=false;
-  else if(renderGroup==="river"&&off.includes("river"))object.visible=false;
- });
+ if(scene){
+  scene.fog=off.includes("fog")?null:new THREE.Fog(currentWorld.fog,560,4800);
+  if(off.length)scene.traverse(object=>{
+   const renderGroup=object.userData?.renderGroup;
+   if(["grass","foliage","river","rocks","sky"].includes(renderGroup)&&off.includes(renderGroup))object.visible=false;
+  });
+ }
+ document.querySelector(".game-shell")?.classList.toggle("debug-hide-hud",off.includes("hud"));
 }
 function applyGraphicsSettings(prefs={}){
  const resolvedProfile=resolveQualityProfile(prefs.quality||settings.quality||"balanced");
@@ -298,6 +301,9 @@ function updatePerformanceGovernor(dt){
  lastFps=Math.round(performanceFrames/performanceElapsed);
  const fpsNode=$("fps-display");if(fpsNode)fpsNode.textContent=lastFps+" FPS";
  let next=adaptiveScale;
+ if(RUN_OPTIONS.lockscale!==null){
+  performanceElapsed=0;performanceFrames=0;return;
+ }
  if(settings.adaptiveQuality!==false){
   if(lastFps<36)next=Math.max(.62,adaptiveScale-.13);
   else if(lastFps<45)next=Math.max(.68,adaptiveScale-.08);
@@ -362,7 +368,7 @@ function createSky(){
 }
 
 function createAurora(parent){
- const group=new THREE.Group();
+ const group=new THREE.Group();group.userData.renderGroup="sky";
  const bands=5;
  for(let band=0;band<bands;band++){
   const segments=180,positions=new Float32Array((segments+1)*2*3),uvs=new Float32Array((segments+1)*2*2),indices=[];
@@ -749,10 +755,11 @@ function createWorldDecor(w,originX=0,originZ=0){
  }
  if(w.terrain===4){
   const cm=new THREE.MeshStandardMaterial({color:"#e5c6a3",transparent:true,opacity:.45,roughness:1});
-  for(let i=0;i<22;i++){const x=(deterministic(i,44)-.5)*180,z=(deterministic(i,84)-.5)*160,cloud=new THREE.Mesh(new THREE.SphereGeometry(6+deterministic(i,34)*8,16,12),cm);cloud.position.set(x,8+deterministic(i,54)*13,z);cloud.scale.set(1.7,.35,1);group.add(cloud);}
+  for(let i=0;i<22;i++){const x=(deterministic(i,44)-.5)*180,z=(deterministic(i,84)-.5)*160,cloud=new THREE.Mesh(new THREE.SphereGeometry(6+deterministic(i,34)*8,16,12),cm);cloud.userData.renderGroup="sky";cloud.position.set(x,8+deterministic(i,54)*13,z);cloud.scale.set(1.7,.35,1);group.add(cloud);}
  }
  const cloudCount=({performance:30,balanced:52,cinematic:78,"4k":96,"8k":112}[settings.quality]||52),cloudGeo=new THREE.SphereGeometry(1,24,16),cloudMat=new THREE.MeshPhysicalMaterial({color:"#d8eee7",roughness:1,metalness:0,transparent:true,opacity:w.terrain===0?.14:.1,depthWrite:false});
  const horizonClouds=new THREE.InstancedMesh(cloudGeo,cloudMat,cloudCount),cloudDummy=new THREE.Object3D();
+ horizonClouds.userData.renderGroup="sky";
  for(let i=0;i<cloudCount;i++){const a=deterministic(i+61,w.seed+8)*Math.PI*2,r=360+deterministic(i+31,w.seed+8)*940,x=Math.cos(a)*r,z=Math.sin(a)*r,y=116+deterministic(i+41,w.seed+8)*122,sz=24+deterministic(i+51,w.seed+8)*62;cloudDummy.position.set(x,y,z);cloudDummy.rotation.y=a;cloudDummy.scale.set(sz*1.85,sz*.22,sz*.85);cloudDummy.updateMatrix();horizonClouds.setMatrixAt(i,cloudDummy.matrix);horizonClouds.setColorAt(i,new THREE.Color(w.palette[3]).lerp(new THREE.Color("#eaf8ed"),.55));}
  horizonClouds.instanceMatrix.needsUpdate=true;horizonClouds.castShadow=false;horizonClouds.receiveShadow=false;group.add(horizonClouds);
  return group;
