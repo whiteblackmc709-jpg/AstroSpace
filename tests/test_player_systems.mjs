@@ -30,12 +30,11 @@ for (const contract of [
   'renderGroup==="grass"&&off.includes("grass")',
   'renderGroup==="foliage"&&off.includes("foliage")',
   'renderGroup==="river"&&off.includes("river")',
-  'RUN_OPTIONS.lockscale!==null?RUN_OPTIONS.lockscale',
+  'RUN_OPTIONS.lockscale!==null',
   'RUN_OPTIONS.lockscale!==null){',
   'off.includes("fog")?null:new THREE.Fog(currentWorld.fog,560,4800)',
   '["grass","foliage","river","rocks","sky"].includes(renderGroup)',
-  'off.includes("hud")'
-
+  'off.includes("hud")',
   'getTriangleBreakdown:()=>collectTriangleBreakdown(scene)',
   'group.userData.renderGroup="terrain"',
   'avatar.group.userData.renderGroup="character"',
