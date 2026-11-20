@@ -27,9 +27,7 @@ const playCss = readFileSync(new URL("../play/play.css", import.meta.url), "utf8
 for (const contract of [
   'RUN_OPTIONS.off.includes("terrainpbr")',
   'RUN_OPTIONS.off.includes("shadows")',
-  'renderGroup==="grass"&&off.includes("grass")',
-  'renderGroup==="foliage"&&off.includes("foliage")',
-  'renderGroup==="river"&&off.includes("river")',
+  '["grass","foliage","river","rocks","sky"].includes(renderGroup)&&off.includes(renderGroup)',
   'RUN_OPTIONS.lockscale!==null',
   'RUN_OPTIONS.lockscale!==null){',
   'off.includes("fog")?null:new THREE.Fog(currentWorld.fog,560,4800)',
