@@ -1,3 +1,4 @@
+import { disposeObject3DResources, disposeResourcesIfUnreferenced } from "./three-resource-lifecycle.js?v=phase-1c-dispose-r1";
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const fract=v=>v-Math.floor(v);
 const seeded=(i,seed=1)=>fract(Math.sin((i+1)*127.1+(seed+3)*311.7)*43758.5453123);
@@ -125,7 +126,7 @@ function bladeGeometry(THREE){
  }
  p.needsUpdate=true;g.computeVertexNormals();return g;
 }
-function orientCylinder(dummy,x,y,z,dx,dy,dz,length,thickness,yaw=0){
+function orientCylinder(THREE,dummy,x,y,z,dx,dy,dz,length,thickness,yaw=0){
  const len=Math.hypot(dx,dy,dz)||1;
  dummy.position.set(x+dx*.5,y+dy*.5,z+dz*.5);
  dummy.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx/len,dy/len,dz/len));
@@ -170,8 +171,12 @@ export function createPlanetaryDetail(THREE,world,{
   material.map=maps.albedo;material.roughnessMap=maps.roughness;
   material.bumpMap=maps.heightMap;material.bumpScale=bumpScale;material.needsUpdate=true;return material;
  };
- const ground=new THREE.Group(),foliage=new THREE.Group(),floaters=new THREE.Group();
- root.add(ground,foliage,floaters);
+ const ground=new THREE.Group(),foliage=new THREE.Group(),floaters=new THREE.Group(),grassGroup=new THREE.Group();
+ ground.userData.renderGroup="rocks";
+ foliage.userData.renderGroup="foliage";
+ floaters.userData.renderGroup="other";
+ grassGroup.userData.renderGroup="grass";
+ root.add(ground,foliage,floaters,grassGroup);
  const dummy=new THREE.Object3D();
 
  // High-frequency geology: one instanced mesh for large boulders and a second for field rubble.
@@ -218,7 +223,7 @@ export function createPlanetaryDetail(THREE,world,{
     const ba=a+k*Math.PI*.5+(seeded(i+k+230,seed)-.5)*.35;
     const reach=9+seeded(i+k+240,seed)*8,up=8+seeded(i+k+250,seed)*13;
     const startY=y+h*(.48+k*.075),dx=Math.cos(ba)*reach,dz=Math.sin(ba)*reach;
-    orientCylinder(dummy,x+Math.cos(ba)*2,startY,z+Math.sin(ba)*2,dx,up,dz,Math.hypot(dx,up,dz),.55);
+    orientCylinder(THREE,dummy,x+Math.cos(ba)*2,startY,z+Math.sin(ba)*2,dx,up,dz,Math.hypot(dx,up,dz),.55);
     branches.setMatrixAt(branchIndex++,dummy.matrix);
    }
    // Individual leaf blades in overlapping fans, not a single low-detail canopy blob.
@@ -238,7 +243,7 @@ export function createPlanetaryDetail(THREE,world,{
    }
   }
   finish(trunks);finish(branches);finish(leaves);finish(crowns);
-  const blade=instance(THREE,bladeGeometry(THREE),new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.98,side:THREE.DoubleSide,vertexColors:true}),budget.forestGrass,ground);
+  const blade=instance(THREE,bladeGeometry(THREE),new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.98,side:THREE.DoubleSide,vertexColors:true}),budget.forestGrass,grassGroup);
   const grassColors=["#39734a","#4b8c50","#76a85b","#a9b96e","#2c6847"].map(c=>new THREE.Color(c));
   for(let i=0;i<budget.forestGrass;i++){
    const patch=i%37,pa=seeded(patch+600,seed)*Math.PI*2,pr=145+seeded(patch+620,seed)*820;
@@ -249,7 +254,7 @@ export function createPlanetaryDetail(THREE,world,{
   }
   finish(blade);
   const fernGeo=leafGeometry(THREE);
-  const ferns=instance(THREE,fernGeo,new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.9,side:THREE.DoubleSide,vertexColors:true}),budget.forestFerns*7,ground);
+  const ferns=instance(THREE,fernGeo,new THREE.MeshStandardMaterial({color:"#ffffff",roughness:.9,side:THREE.DoubleSide,vertexColors:true}),budget.forestFerns*7,grassGroup);
   let fi=0;
   for(let i=0;i<budget.forestFerns;i++){
    const a=seeded(i+820,seed)*Math.PI*2,r=70+seeded(i+840,seed)*900,x=Math.cos(a)*r,z=Math.sin(a)*r,y=terrainHeight(x+originX,z+originZ,world);
@@ -260,7 +265,7 @@ export function createPlanetaryDetail(THREE,world,{
    }
   }
   finish(ferns);
-  const flowerGeo=new THREE.SphereGeometry(.34,10,8),flowers=instance(THREE,flowerGeo,new THREE.MeshStandardMaterial({color:"#dfffe2",emissive:"#73d5a0",emissiveIntensity:.24,roughness:.42}),budget.forestFlowers,ground);
+  const flowerGeo=new THREE.SphereGeometry(.34,10,8),flowers=instance(THREE,flowerGeo,new THREE.MeshStandardMaterial({color:"#dfffe2",emissive:"#73d5a0",emissiveIntensity:.24,roughness:.42}),budget.forestFlowers,grassGroup);
   for(let i=0;i<budget.forestFlowers;i++){
    const a=seeded(i+930,seed)*Math.PI*2,r=80+seeded(i+950,seed)*880,x=Math.cos(a)*r,z=Math.sin(a)*r,y=terrainHeight(x+originX,z+originZ,world),sc=.42+seeded(i+970,seed)*.95;
    place(THREE,flowers,i,dummy,x,y+sc*.45,z,sc*.7,sc*1.25,sc*.7,0,seeded(i+980,seed)*6.28,0);
@@ -277,7 +282,7 @@ export function createPlanetaryDetail(THREE,world,{
    for(let k=0;k<5;k++){
     const angle=seeded(i*7+k+1140,seed)*Math.PI*2,reach=4+seeded(i+k+1160,seed)*8,up=8+seeded(i+k+1180,seed)*22;
     const dx=Math.cos(angle)*reach,dz=Math.sin(angle)*reach;
-    orientCylinder(dummy,x,y,z,dx,up,dz,Math.hypot(dx,up,dz),.72+seeded(i+k+1200,seed)*.65);
+    orientCylinder(THREE,dummy,x,y,z,dx,up,dz,Math.hypot(dx,up,dz),.72+seeded(i+k+1200,seed)*.65);
     branches.setMatrixAt(bi++,dummy.matrix);
     branches.setColorAt(bi-1,reefTints[(i+k)%reefTints.length]);
    }
@@ -344,6 +349,7 @@ export function createPlanetaryDetail(THREE,world,{
   finish(islands);
   const cloudMat=new THREE.MeshStandardMaterial({color:"#e7d8c2",transparent:true,opacity:.27,roughness:1,depthWrite:false});
   const clouds=instance(THREE,new THREE.SphereGeometry(1,12,10),cloudMat,budget.cloudPuffs,floaters);
+  clouds.userData.renderGroup="sky";
   for(let i=0;i<budget.cloudPuffs;i++){
    const a=seeded(i+2280,seed)*Math.PI*2,r=80+seeded(i+2300,seed)*870,x=Math.cos(a)*r,z=Math.sin(a)*r,y=54+seeded(i+2320,seed)*115,sc=9+seeded(i+2340,seed)*27;
    place(THREE,clouds,i,dummy,x,y,z,sc*2.5,sc*.32,sc,0,seeded(i+2360,seed)*6.28,0);
@@ -368,24 +374,23 @@ export function createPlanetaryDetail(THREE,world,{
  }
 
  root.userData.detailTextures=textureBundles;
- root.userData.disposeTextures=()=>{for(const maps of textureBundles)maps.dispose();textureBundles.length=0;};
+ root.userData.disposeTextures=()=>{
+  const textures=[];
+  for(const maps of textureBundles)for(const value of Object.values(maps))if(value?.isTexture)textures.push(value);
+  let scope=root;while(scope.parent)scope=scope.parent;
+  disposeResourcesIfUnreferenced(textures,scope,root);
+  textureBundles.length=0;
+ };
  root.userData.detailBudget=budget;
  root.userData.quality=quality;
  root.userData.setQuality=nextQuality=>{
   if(nextQuality===root.userData.quality)return root;
   const parent=root.parent;
-  root.userData.disposeTextures?.();
   const replacement=createPlanetaryDetail(THREE,world,{quality:nextQuality,originX,originZ,terrainHeight});
-  if(parent){parent.add(replacement);parent.remove(root);}
-  const geometries=new Set(),materials=new Set();
-  root.traverse(object=>{
-   if(object.geometry&&!geometries.has(object.geometry)){geometries.add(object.geometry);object.geometry.dispose();}
-   if(object.material){
-    const list=Array.isArray(object.material)?object.material:[object.material];
-    for(const material of list){if(material&&!materials.has(material)){materials.add(material);material.dispose();}}
-   }
-  });
-  root.clear();return replacement;
+  if(parent)parent.add(replacement);
+  root.userData.disposeTextures?.();
+  disposeObject3DResources(root);
+  return replacement;
  };
  root.userData.update=(time,dt)=>{
   foliage.rotation.z=kind===0?Math.sin(time*.28)*.003:0;

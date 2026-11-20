@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/play/play.css?v=toolbar-boot-fix-r1">
+  <link rel="stylesheet" href="/play/play.css?v=phase-2a2-profiling-r1">
 </head>
 <body>
   <main class="game-shell">
@@ -198,7 +198,7 @@
       <div class="settings-panel">
         <header class="modal-heading"><div><small>CONFIGURATION / ACCESSIBILITY / AUDIO</small><h2>FLIGHT <em>SETTINGS</em></h2></div><button class="modal-close" id="settings-close">×</button></header>
         <div class="settings-grid">
-          <section><h3>VISUAL QUALITY</h3><label for="quality-select">RENDER PROFILE</label><select id="quality-select"><option value="performance">PERFORMANCE</option><option value="balanced" selected>BALANCED · 2K</option><option value="cinematic">CINEMATIC · 4K AUTO</option><option value="4k">ULTRA · 4K TEXTURES</option><option value="8k">EXTREME · 8K TEXTURES</option></select>
+          <section><h3>VISUAL QUALITY</h3><label for="quality-select">RENDER PROFILE</label><select id="quality-select"><option value="performance">LOW · PERFORMANCE</option><option value="balanced" selected>MEDIUM · BALANCED · 2K</option><option value="cinematic">HIGH · CINEMATIC · 4K AUTO</option><option value="4k">ULTRA · 4K TEXTURES</option><option value="8k">ULTRA · 8K TEXTURES</option></select>
           <p class="setting-note" id="texture-quality-status" role="status">WORLD DETAIL + PBR // TERRAIN / BIOME / 2K–8K GPU ADAPTIVE</p>
           <label for="fov-slider">FIELD OF VIEW <b id="fov-value">58°</b></label><input id="fov-slider" type="range" min="48" max="82" value="58">
           <label for="sensitivity-slider">LOOK SENSITIVITY <b id="sensitivity-value">100%</b></label><input id="sensitivity-slider" type="range" min="40" max="180" value="100">
@@ -237,7 +237,7 @@
     </div>
     <div class="webgl-error" id="webgl-error" hidden>
       <b>3D SIMULATION UNAVAILABLE</b>
-      <p>Enable hardware acceleration and WebGL in your browser, then reload the prologue.</p>
+      <p>3D startup failed. Diagnostic details will appear here.</p>
       <a href="/">RETURN TO COMMAND ARCHIVE</a>
     </div>
 
@@ -262,6 +262,6 @@
       </div>
     </div>
   </main>
-  <script type="module" src="/play/play.js?v=toolbar-boot-fix-r1"></script>
+  <script type="module" src="/play/play.js?v=phase-2a2-profiling-r1"></script>
 </body>
 </html>

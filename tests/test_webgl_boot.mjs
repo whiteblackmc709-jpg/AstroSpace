@@ -19,7 +19,28 @@ assert.match(source, /initialising the planetary scene/,
   "boot should record the stage for useful startup diagnostics");
 assert.match(source, /startCompatibilityScene\(error,bootStage\)/,
   "the error panel must show the actual startup failure instead of always blaming WebGL");
-assert.match(html, /play\.js\?v=toolbar-boot-fix-r1/,
+assert.match(html, /play\.js\?v=phase-2a2-profiling-r1/,
   "the repaired game module must use a new cache-busting version");
 
-console.log("WebGL boot contract: PASS — star field declared before use, optional PMREM fallback, useful diagnostics and cache bust.");
+
+assert.match(source, /errorStack=error\?\.stack/,
+  "startup fallback must log the full exception stack to the console");
+assert.match(source, /errorName=String\(error\?\.name\|\|"Error"\)/,
+  "startup fallback must expose the actual exception type");
+assert.match(source, /isWebGLFailure=/,
+  "WebGL guidance must be conditional on a recognized WebGL failure");
+assert.doesNotMatch(source, /enable WebGL \/ hardware acceleration/,
+  "application exceptions must not be blamed on WebGL or hardware acceleration");
+assert.match(html, /3D startup failed\. Diagnostic details will appear here\./,
+  "static fallback copy must not assume a WebGL failure");
+
+console.log("WebGL boot contract: PASS — startup error name/stack, conditional WebGL guidance and cache bust.");
+
+assert.match(source, /const updateMs=measureDebug\?performance\.now\(\)-updateStartedAt:null/,
+  "debug timing must measure JavaScript update work without affecting normal frames");
+assert.match(source, /const renderSubmitMs=measureDebug\?performance\.now\(\)-renderStartedAt:null/,
+  "debug timing must measure only the JavaScript renderer.render submission call");
+assert.match(source, /debugOverlay\?\.beginGpuFrame\(\)[\s\S]*?renderer\.render\(scene,camera\)[\s\S]*?debugOverlay\?\.endGpuFrame\(\)/,
+  "GPU timer query must bracket the renderer submission");
+assert.match(html, /play\.js\?v=phase-2a2-profiling-r1/,
+  "timing instrumentation must use a new runtime cache-busting version");

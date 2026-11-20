@@ -1,6 +1,7 @@
 import * as Auth from "./auth.js";
 import * as Social from "./social.js";
 import * as Audio from "./audio.js";
+import { resolveQualityProfile } from "./quality-profile.js?v=phase-1c-quality-profile-r1";
 
 const $ = (id) => document.getElementById(id);
 const show = (id) => { const node = $(id); if (node) node.hidden = false; };
@@ -26,8 +27,16 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
     } catch { return { quality: "balanced", fov: 58, sensitivity: 1, invert: false,
       reducedMotion: false, adaptiveQuality: true, subtitles: true, hud: true }; }
   })();
+  const initialQualityProfile = resolveQualityProfile(prefs.quality);
+  prefs.quality = initialQualityProfile.legacyQuality;
+  prefs.qualityProfile = initialQualityProfile.id;
 
-  const savePrefs = () => localStorage.setItem("astrospace-settings-v2", JSON.stringify({ ...prefs, volume }));
+  const savePrefs = () => {
+    const profile = resolveQualityProfile(prefs.quality);
+    prefs.quality = profile.legacyQuality;
+    prefs.qualityProfile = profile.id;
+    localStorage.setItem("astrospace-settings-v2", JSON.stringify({ ...prefs, volume }));
+  };
   const setStatus = (message, warning = false) => {
     const node = $("account-status");
     if (!node) return;
@@ -352,13 +361,13 @@ export function mountSocialUI({ toast, getWorld, getRegion, applyGraphics, onSes
     $("settings-button").addEventListener("click", () => show("settings-overlay"));
     $("settings-close").addEventListener("click", () => hide("settings-overlay"));
     $("settings-reset").addEventListener("click", () => {
-      prefs = { quality: "balanced", fov: 58, sensitivity: 1, invert: false,
+      prefs = { quality: "balanced", qualityProfile: "medium", fov: 58, sensitivity: 1, invert: false,
         reducedMotion: false, adaptiveQuality: true, subtitles: true, hud: true };
       volume = { music: 0.24, ambience: 0.22, sfx: 0.55 };
       renderSettings();
       savePrefs();
     });
-    $("quality-select").addEventListener("change", () => { prefs.quality = $("quality-select").value; applyGraphics?.(prefs); savePrefs(); });
+    $("quality-select").addEventListener("change", () => { const profile = resolveQualityProfile($("quality-select").value); prefs.quality = profile.legacyQuality; prefs.qualityProfile = profile.id; applyGraphics?.(prefs); savePrefs(); });
     $("adaptive-quality").addEventListener("change", () => { prefs.adaptiveQuality = $("adaptive-quality").checked; applyGraphics?.(prefs); savePrefs(); });
     $("fov-slider").addEventListener("input", () => { prefs.fov = Number($("fov-slider").value); updateLabels(); applyGraphics?.(prefs); savePrefs(); });
     $("sensitivity-slider").addEventListener("input", () => { prefs.sensitivity = Number($("sensitivity-slider").value) / 100; updateLabels(); applyGraphics?.(prefs); savePrefs(); });
